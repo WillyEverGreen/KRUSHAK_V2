@@ -1,4 +1,10 @@
-import { MdEco, MdHomeFilled, MdPerson, MdSearch, MdShowChart } from "react-icons/md";
+import {
+  MdEco,
+  MdHomeFilled,
+  MdPerson,
+  MdSearch,
+  MdShowChart,
+} from "react-icons/md";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 const navItems = [

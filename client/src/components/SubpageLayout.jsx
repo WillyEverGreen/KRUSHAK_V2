@@ -7,12 +7,16 @@ export default function SubpageLayout({ title, children }) {
   return (
     <div className="subpage">
       <div className="subpage-header">
-        <button className="header-back-btn" onClick={() => navigate(-1)} aria-label="Go back">
+        <button
+          className="header-back-btn"
+          onClick={() => navigate(-1)}
+          aria-label="Go back"
+        >
           <MdArrowBack size={24} />
         </button>
         <div style={{ fontWeight: 700 }}>{title}</div>
       </div>
-      <div className="mobile-content">{children}</div>
+      <div className="subpage-content">{children}</div>
     </div>
   );
 }

@@ -24,7 +24,7 @@ function buildToken(user) {
       fullName: user.fullName,
     },
     env.JWT_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "7d" },
   );
 }
 
@@ -97,7 +97,9 @@ export async function login(req, res, next) {
 
 export async function getMe(req, res, next) {
   try {
-    const user = await User.findById(req.user.sub).select("fullName email role village district");
+    const user = await User.findById(req.user.sub).select(
+      "fullName email role village district",
+    );
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }

@@ -35,7 +35,10 @@ export default function ChatScreen() {
     }
   }, [messages, mutation.isPending]);
 
-  const canSend = useMemo(() => input.trim().length > 0 && !mutation.isPending, [input, mutation.isPending]);
+  const canSend = useMemo(
+    () => input.trim().length > 0 && !mutation.isPending,
+    [input, mutation.isPending],
+  );
 
   function handleSend(messageText) {
     const text = messageText.trim();
@@ -46,20 +49,46 @@ export default function ChatScreen() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "calc(100dvh - 130px)" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "calc(100dvh - 130px)",
+      }}
+    >
       <div style={{ flex: 1, overflowY: "auto" }}>
         {messages.length === 0 ? (
           <div style={{ padding: 12 }}>
-            <div className="card-elevated" style={{ textAlign: "center", paddingTop: 24, paddingBottom: 24 }}>
-              <div className="text-xxl" style={{ fontWeight: 700 }}>Hello, Farmer!</div>
-              <div className="text-md muted mt-8">I am your AI farming assistant. Ask anything about crops, disease, irrigation, and market planning.</div>
+            <div
+              className="card-elevated"
+              style={{ textAlign: "center", paddingTop: 24, paddingBottom: 24 }}
+            >
+              <div className="text-xxl" style={{ fontWeight: 700 }}>
+                Hello, Farmer!
+              </div>
+              <div className="text-md muted mt-8">
+                I am your AI farming assistant. Ask anything about crops,
+                disease, irrigation, and market planning.
+              </div>
             </div>
 
-            <div className="text-sm" style={{ fontWeight: 700, marginTop: 16, marginBottom: 8 }}>Try asking:</div>
+            <div
+              className="text-sm"
+              style={{ fontWeight: 700, marginTop: 16, marginBottom: 8 }}
+            >
+              Try asking:
+            </div>
             <div style={{ display: "grid", gap: 8 }}>
               {suggestions.map((question) => (
-                <button key={question} className="card" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => handleSend(question)}>
-                  <div className="text-sm" style={{ color: "#1b5e20" }}>{question}</div>
+                <button
+                  key={question}
+                  className="card"
+                  style={{ textAlign: "left", cursor: "pointer" }}
+                  onClick={() => handleSend(question)}
+                >
+                  <div className="text-sm" style={{ color: "#1b5e20" }}>
+                    {question}
+                  </div>
                 </button>
               ))}
             </div>
@@ -67,17 +96,33 @@ export default function ChatScreen() {
         ) : (
           <div className="message-list">
             {messages.map((message, index) => (
-              <div key={`${message.role}-${index}`} className={`message ${message.role === "user" ? "user" : "bot"}`}>
+              <div
+                key={`${message.role}-${index}`}
+                className={`message ${message.role === "user" ? "user" : "bot"}`}
+              >
                 {message.text}
               </div>
             ))}
-            {mutation.isPending && <div className="message bot">Thinking...</div>}
+            {mutation.isPending && (
+              <div className="message bot">Thinking...</div>
+            )}
             <div ref={endRef} />
           </div>
         )}
       </div>
 
-      <div className="card" style={{ position: "sticky", bottom: 0, background: "#ffffff", borderRadius: 16, display: "flex", gap: 8, alignItems: "center" }}>
+      <div
+        className="card"
+        style={{
+          position: "sticky",
+          bottom: 0,
+          background: "#ffffff",
+          borderRadius: 16,
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+        }}
+      >
         <input
           className="search-input"
           style={{ flex: 1 }}
@@ -90,7 +135,12 @@ export default function ChatScreen() {
             }
           }}
         />
-        <button className="btn btn-primary" disabled={!canSend} onClick={() => handleSend(input)} aria-label="Send message">
+        <button
+          className="btn btn-primary"
+          disabled={!canSend}
+          onClick={() => handleSend(input)}
+          aria-label="Send message"
+        >
           <MdSend size={18} />
         </button>
       </div>

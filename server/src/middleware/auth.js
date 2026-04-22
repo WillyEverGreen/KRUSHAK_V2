@@ -4,7 +4,9 @@ import { env } from "../config/env.js";
 export function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Missing or invalid authorization token" });
+    return res
+      .status(401)
+      .json({ message: "Missing or invalid authorization token" });
   }
 
   const token = authHeader.split(" ")[1];
@@ -37,7 +39,9 @@ export function optionalAuth(req, _res, next) {
 export function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ message: "Forbidden: insufficient privileges" });
+      return res
+        .status(403)
+        .json({ message: "Forbidden: insufficient privileges" });
     }
     return next();
   };

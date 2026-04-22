@@ -64,7 +64,9 @@ export async function getRecentDiagnoses(req, res, next) {
       return res.status(200).json({ recent: [] });
     }
 
-    const recent = await ScanRecord.find({ userId: req.user.sub }).sort({ createdAt: -1 }).limit(5);
+    const recent = await ScanRecord.find({ userId: req.user.sub })
+      .sort({ createdAt: -1 })
+      .limit(5);
 
     return res.status(200).json({ recent });
   } catch (error) {
@@ -75,7 +77,9 @@ export async function getRecentDiagnoses(req, res, next) {
 export async function createScanRecord(req, res, next) {
   try {
     if (!req.user) {
-      return res.status(401).json({ message: "Login required to save diagnosis history" });
+      return res
+        .status(401)
+        .json({ message: "Login required to save diagnosis history" });
     }
 
     const payload = scanInputSchema.parse(req.body);

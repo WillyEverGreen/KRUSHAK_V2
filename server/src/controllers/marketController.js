@@ -68,7 +68,8 @@ export async function getMarketPrices(req, res) {
 
   const filtered = samplePrices.filter((item) => {
     const matchesState = !state || item.state.toLowerCase() === state;
-    const matchesCommodity = !commodity || item.commodity.toLowerCase() === commodity;
+    const matchesCommodity =
+      !commodity || item.commodity.toLowerCase() === commodity;
     const matchesQ =
       !q ||
       item.commodity.toLowerCase().includes(q) ||

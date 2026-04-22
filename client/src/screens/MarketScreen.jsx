@@ -40,7 +40,11 @@ export default function MarketScreen() {
   const [stateFilter, setStateFilter] = useState("");
   const [commodityFilter, setCommodityFilter] = useState("");
 
-  const { data: prices = [], isFetching, refetch } = useQuery({
+  const {
+    data: prices = [],
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ["market-prices", stateFilter, commodityFilter, search],
     queryFn: () =>
       fetchMarketPrices({
@@ -53,15 +57,28 @@ export default function MarketScreen() {
   return (
     <div>
       <div className="row-between">
-        <div className="text-xl" style={{ fontWeight: 800 }}>Mandi Prices</div>
-        <button className="btn btn-subtle" onClick={() => refetch()} aria-label="Refresh">
+        <div className="text-xl" style={{ fontWeight: 800 }}>
+          Mandi Prices
+        </div>
+        <button
+          className="btn btn-subtle"
+          onClick={() => refetch()}
+          aria-label="Refresh"
+        >
           <MdRefresh size={18} />
         </button>
       </div>
 
       <div className="card mt-12" style={{ padding: 12 }}>
         <div style={{ position: "relative" }}>
-          <MdSearch style={{ position: "absolute", top: 12, left: 10, color: "#2e7d32" }} />
+          <MdSearch
+            style={{
+              position: "absolute",
+              top: 12,
+              left: 10,
+              color: "#2e7d32",
+            }}
+          />
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -72,14 +89,22 @@ export default function MarketScreen() {
         </div>
 
         <div className="row mt-12">
-          <select className="search-input" value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}>
+          <select
+            className="search-input"
+            value={stateFilter}
+            onChange={(event) => setStateFilter(event.target.value)}
+          >
             {states.map((stateName) => (
               <option key={stateName || "all"} value={stateName}>
                 {stateName || "All States"}
               </option>
             ))}
           </select>
-          <select className="search-input" value={commodityFilter} onChange={(event) => setCommodityFilter(event.target.value)}>
+          <select
+            className="search-input"
+            value={commodityFilter}
+            onChange={(event) => setCommodityFilter(event.target.value)}
+          >
             {commodities.map((item) => (
               <option key={item || "all"} value={item}>
                 {item || "All Commodities"}
@@ -90,18 +115,27 @@ export default function MarketScreen() {
       </div>
 
       <div className="mt-12" style={{ display: "grid", gap: 12 }}>
-        {isFetching && <div className="text-sm muted">Fetching latest mandi prices...</div>}
+        {isFetching && (
+          <div className="text-sm muted">Fetching latest mandi prices...</div>
+        )}
 
         {!isFetching && prices.length === 0 && (
           <div className="card">
-            <div className="text-md muted">No prices found. Try adjusting filters.</div>
+            <div className="text-md muted">
+              No prices found. Try adjusting filters.
+            </div>
           </div>
         )}
 
         {prices.map((price, index) => (
-          <div className="card" key={`${price.market}-${price.commodity}-${index}`}>
+          <div
+            className="card"
+            key={`${price.market}-${price.commodity}-${index}`}
+          >
             <div className="row-between">
-              <div className="text-lg" style={{ fontWeight: 700 }}>{price.commodity}</div>
+              <div className="text-lg" style={{ fontWeight: 700 }}>
+                {price.commodity}
+              </div>
               <span className="chip">{price.arrivalDate}</span>
             </div>
 
@@ -112,11 +146,20 @@ export default function MarketScreen() {
               </div>
             )}
 
-            <div className="text-sm muted mt-8">{price.market}, {price.district}, {price.state}</div>
+            <div className="text-sm muted mt-8">
+              {price.market}, {price.district}, {price.state}
+            </div>
 
-            <div className="row mt-12" style={{ justifyContent: "space-around" }}>
+            <div
+              className="row mt-12"
+              style={{ justifyContent: "space-around" }}
+            >
               <PriceCol label="Min" value={price.minPrice} color="#ef4444" />
-              <PriceCol label="Modal" value={price.modalPrice} color="#2e7d32" />
+              <PriceCol
+                label="Modal"
+                value={price.modalPrice}
+                color="#2e7d32"
+              />
               <PriceCol label="Max" value={price.maxPrice} color="#3b82f6" />
             </div>
           </div>
@@ -130,7 +173,9 @@ function PriceCol({ label, value, color }) {
   return (
     <div style={{ textAlign: "center" }}>
       <div className="text-xs muted">{label}</div>
-      <div className="text-lg" style={{ color, fontWeight: 700 }}>Rs {value}</div>
+      <div className="text-lg" style={{ color, fontWeight: 700 }}>
+        Rs {value}
+      </div>
       <div className="text-xs muted">/quintal</div>
     </div>
   );

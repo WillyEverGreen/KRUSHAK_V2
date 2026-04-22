@@ -6,7 +6,8 @@ const fallbackCareGuide = {
   water: "Water every 2-3 days, keep soil moist but not waterlogged.",
   sunlight: "6-8 hours of direct sunlight daily.",
   fertilizer: "Use organic fertilizer every 2 weeks during growing season.",
-  pests: "Inspect regularly for aphids and caterpillars. Use neem oil if needed.",
+  pests:
+    "Inspect regularly for aphids and caterpillars. Use neem oil if needed.",
 };
 
 export default function CareGuidesScreen() {
@@ -26,7 +27,9 @@ export default function CareGuidesScreen() {
 
   return (
     <div>
-      <div className="text-xl" style={{ fontWeight: 800 }}>My Plants and Care Guides</div>
+      <div className="text-xl" style={{ fontWeight: 800 }}>
+        My Plants and Care Guides
+      </div>
 
       {crops.length === 0 ? (
         <div className="card mt-16">
@@ -34,9 +37,14 @@ export default function CareGuidesScreen() {
         </div>
       ) : (
         <>
-          <div className="row mt-16" style={{ overflowX: "auto", paddingBottom: 4 }}>
+          <div
+            className="row mt-16"
+            style={{ overflowX: "auto", paddingBottom: 4 }}
+          >
             {crops.map((crop) => {
-              const selected = selectedCrop?.name === crop.name || (!selectedCrop && crop === crops[0]);
+              const selected =
+                selectedCrop?.name === crop.name ||
+                (!selectedCrop && crop === crops[0]);
               return (
                 <button
                   key={crop.name}
@@ -44,11 +52,18 @@ export default function CareGuidesScreen() {
                   style={{
                     minWidth: 122,
                     borderColor: selected ? "#4caf50" : "#e5ece7",
-                    boxShadow: selected ? "0 0 0 2px rgba(76,175,80,0.2)" : "none",
+                    boxShadow: selected
+                      ? "0 0 0 2px rgba(76,175,80,0.2)"
+                      : "none",
                   }}
                   onClick={() => setSelectedCrop(crop)}
                 >
-                  <div className="text-md" style={{ fontWeight: 700, color: "#1b5e20" }}>{crop.name}</div>
+                  <div
+                    className="text-md"
+                    style={{ fontWeight: 700, color: "#1b5e20" }}
+                  >
+                    {crop.name}
+                  </div>
                   <div className="text-xs muted mt-8">{crop.stage}</div>
                 </button>
               );
@@ -56,7 +71,9 @@ export default function CareGuidesScreen() {
           </div>
 
           <div className="card-elevated mt-16">
-            <div className="text-xl" style={{ fontWeight: 700 }}>Care Guide</div>
+            <div className="text-xl" style={{ fontWeight: 700 }}>
+              Care Guide
+            </div>
             <GuideLine label="Water" text={fallbackCareGuide.water} />
             <GuideLine label="Sunlight" text={fallbackCareGuide.sunlight} />
             <GuideLine label="Fertilizer" text={fallbackCareGuide.fertilizer} />
@@ -65,21 +82,32 @@ export default function CareGuidesScreen() {
         </>
       )}
 
-      <div className="text-xl mt-20" style={{ fontWeight: 800 }}>Recent Diagnosis History</div>
+      <div className="text-xl mt-20" style={{ fontWeight: 800 }}>
+        Recent Diagnosis History
+      </div>
       <div className="mt-12" style={{ display: "grid", gap: 10 }}>
         {recentDiagnoses.length === 0 && (
           <div className="card">
-            <div className="text-sm muted">No diagnosis history available yet.</div>
+            <div className="text-sm muted">
+              No diagnosis history available yet.
+            </div>
           </div>
         )}
 
         {recentDiagnoses.map((record) => (
           <div className="card" key={record._id}>
-            <div className="text-md" style={{ fontWeight: 700, color: "#2e7d32" }}>
+            <div
+              className="text-md"
+              style={{ fontWeight: 700, color: "#2e7d32" }}
+            >
               Diagnosis: {record.diseaseName}
             </div>
-            <div className="text-sm muted mt-8">{Math.round(record.confidence * 100)}% confidence</div>
-            <div className="text-xs muted mt-8">{new Date(record.createdAt).toLocaleString()}</div>
+            <div className="text-sm muted mt-8">
+              {Math.round(record.confidence * 100)}% confidence
+            </div>
+            <div className="text-xs muted mt-8">
+              {new Date(record.createdAt).toLocaleString()}
+            </div>
           </div>
         ))}
       </div>
@@ -89,7 +117,10 @@ export default function CareGuidesScreen() {
 
 function GuideLine({ label, text }) {
   return (
-    <div className="text-sm mt-12" style={{ color: "#1f2937", lineHeight: 1.45 }}>
+    <div
+      className="text-sm mt-12"
+      style={{ color: "#1f2937", lineHeight: 1.45 }}
+    >
       <strong>{label}:</strong> {text}
     </div>
   );

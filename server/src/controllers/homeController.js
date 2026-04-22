@@ -3,7 +3,9 @@ import { ScanRecord } from "../models/ScanRecord.js";
 export async function getHomeData(req, res, next) {
   try {
     const recent = req.user
-      ? await ScanRecord.find({ userId: req.user.sub }).sort({ createdAt: -1 }).limit(1)
+      ? await ScanRecord.find({ userId: req.user.sub })
+          .sort({ createdAt: -1 })
+          .limit(1)
       : [];
 
     const latest = recent[0];

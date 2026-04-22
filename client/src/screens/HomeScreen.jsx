@@ -28,7 +28,8 @@ const fallbackData = {
     "Plan fertilizer for tomorrow if rain probability is low.",
   ],
   riskMeters: { waterStress: 25, pestAlert: 50, weatherRisk: 40 },
-  villageAlert: "Pest activity rising in nearby farms. Inspect mustard and tomato leaves today.",
+  villageAlert:
+    "Pest activity rising in nearby farms. Inspect mustard and tomato leaves today.",
 };
 
 function riskColor(value) {
@@ -87,38 +88,91 @@ export default function HomeScreen() {
     <div>
       <div className="hero-card">
         <div className="hero-row">
-          <div style={{ width: 48, height: 48, borderRadius: 24, background: "rgba(255,255,255,0.35)", display: "grid", placeItems: "center" }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              background: "rgba(255,255,255,0.35)",
+              display: "grid",
+              placeItems: "center",
+            }}
+          >
             <MdEco size={26} />
           </div>
           <div>
-            <p className="hero-subtitle" style={{ marginBottom: 2 }}>{data.greeting}</p>
+            <p className="hero-subtitle" style={{ marginBottom: 2 }}>
+              {data.greeting}
+            </p>
             <h1 className="hero-title">{data.dashboardTitle}</h1>
-            <div className="row" style={{ alignItems: "center", color: "rgba(255,255,255,0.86)" }}>
+            <div
+              className="row"
+              style={{ alignItems: "center", color: "rgba(255,255,255,0.86)" }}
+            >
               <MdLocationOn size={14} />
               <span className="text-sm">{data.location}</span>
             </div>
           </div>
           <div className="weather-chip">
-            <div style={{ fontWeight: 700, fontSize: 22 }}>{data.weather.value}</div>
-            <div className="text-xs" style={{ color: "rgba(255,255,255,0.86)" }}>{data.weather.summary}</div>
+            <div style={{ fontWeight: 700, fontSize: 22 }}>
+              {data.weather.value}
+            </div>
+            <div
+              className="text-xs"
+              style={{ color: "rgba(255,255,255,0.86)" }}
+            >
+              {data.weather.summary}
+            </div>
           </div>
         </div>
 
         <div className="row mt-16">
-          <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => navigate("/diagnose")}>Scan Crop</button>
-          <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => navigate("/market")}>Market</button>
+          <button
+            className="btn btn-outline"
+            style={{ flex: 1 }}
+            onClick={() => navigate("/diagnose")}
+          >
+            Scan Crop
+          </button>
+          <button
+            className="btn btn-outline"
+            style={{ flex: 1 }}
+            onClick={() => navigate("/market")}
+          >
+            Market
+          </button>
         </div>
       </div>
 
       <InstallBanner />
 
       <div className="card-elevated mt-16">
-        <div className="text-xl" style={{ fontWeight: 800 }}>Today&apos;s AI Instructions</div>
+        <div className="text-xl" style={{ fontWeight: 800 }}>
+          Today&apos;s AI Instructions
+        </div>
         <div className="mt-12" style={{ display: "grid", gap: 10 }}>
           {data.instructions.map((instruction) => (
-            <div key={instruction} style={{ background: "rgba(232,245,233,0.65)", borderRadius: 14, padding: 12, display: "flex", gap: 10 }}>
-              <MdCheckCircleOutline size={18} color="#2E7D32" style={{ marginTop: 2 }} />
-              <div className="text-md" style={{ color: "#1b5e20", lineHeight: 1.35 }}>{instruction}</div>
+            <div
+              key={instruction}
+              style={{
+                background: "rgba(232,245,233,0.65)",
+                borderRadius: 14,
+                padding: 12,
+                display: "flex",
+                gap: 10,
+              }}
+            >
+              <MdCheckCircleOutline
+                size={18}
+                color="#2E7D32"
+                style={{ marginTop: 2 }}
+              />
+              <div
+                className="text-md"
+                style={{ color: "#1b5e20", lineHeight: 1.35 }}
+              >
+                {instruction}
+              </div>
             </div>
           ))}
         </div>
@@ -140,9 +194,13 @@ export default function HomeScreen() {
             <div key={item.label} className="risk-card">
               <Icon size={28} color="#2E7D32" />
               <div className="health-bar mt-8">
-                <span style={{ width: `${value}%`, background: riskColor(value) }} />
+                <span
+                  style={{ width: `${value}%`, background: riskColor(value) }}
+                />
               </div>
-              <div className="text-lg mt-8" style={{ fontWeight: 700 }}>{value}%</div>
+              <div className="text-lg mt-8" style={{ fontWeight: 700 }}>
+                {value}%
+              </div>
               <div className="text-xs muted">{item.label}</div>
             </div>
           );
@@ -157,22 +215,49 @@ export default function HomeScreen() {
         {quickTools.map((tool) => {
           const Icon = tool.icon;
           return (
-            <button key={tool.title} className="quick-tool" onClick={tool.onTap}>
-              <div className="quick-tool-icon" style={{ background: tool.color }}>
+            <button
+              key={tool.title}
+              className="quick-tool"
+              onClick={tool.onTap}
+            >
+              <div
+                className="quick-tool-icon"
+                style={{ background: tool.color }}
+              >
                 <Icon size={22} />
               </div>
-              <div className="text-xs" style={{ fontWeight: 600, textAlign: "center", color: "#1b5e20" }}>{tool.title}</div>
+              <div
+                className="text-xs"
+                style={{
+                  fontWeight: 600,
+                  textAlign: "center",
+                  color: "#1b5e20",
+                }}
+              >
+                {tool.title}
+              </div>
             </button>
           );
         })}
       </div>
 
       <div className="card mt-18" style={{ display: "flex", gap: 12 }}>
-        <div style={{ width: 42, height: 42, borderRadius: 12, background: "#FFF4E5", display: "grid", placeItems: "center" }}>
+        <div
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: 12,
+            background: "#FFF4E5",
+            display: "grid",
+            placeItems: "center",
+          }}
+        >
           <MdCampaign color="#f97316" size={22} />
         </div>
         <div>
-          <div className="text-lg" style={{ fontWeight: 700 }}>Village Alert</div>
+          <div className="text-lg" style={{ fontWeight: 700 }}>
+            Village Alert
+          </div>
           <div className="text-md muted">{data.villageAlert}</div>
         </div>
       </div>

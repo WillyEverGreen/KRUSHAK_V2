@@ -13,7 +13,10 @@ import {
 } from "../controllers/farmController.js";
 import { getMarketPrices } from "../controllers/marketController.js";
 import { getNews } from "../controllers/newsController.js";
-import { getChatSuggestions, sendChatMessage } from "../controllers/chatController.js";
+import {
+  getChatSuggestions,
+  sendChatMessage,
+} from "../controllers/chatController.js";
 import { getAdminSummary } from "../controllers/adminController.js";
 import { optionalAuth, requireAuth, requireRole } from "../middleware/auth.js";
 
@@ -36,6 +39,11 @@ router.get("/news", getNews);
 router.get("/chat/suggestions", getChatSuggestions);
 router.post("/chat/message", sendChatMessage);
 
-router.get("/admin/summary", requireAuth, requireRole("admin"), getAdminSummary);
+router.get(
+  "/admin/summary",
+  requireAuth,
+  requireRole("admin"),
+  getAdminSummary,
+);
 
 export default router;

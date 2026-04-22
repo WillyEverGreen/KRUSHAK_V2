@@ -10,7 +10,11 @@ export default function InstallBanner() {
     }
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    return () =>
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt,
+      );
   }, []);
 
   async function handleInstall() {
@@ -26,10 +30,16 @@ export default function InstallBanner() {
     <div className="install-banner">
       <div className="row-between">
         <div>
-          <div className="text-md" style={{ fontWeight: 700 }}>Install Krushak App</div>
-          <div className="text-xs muted">Use it offline from your home screen.</div>
+          <div className="text-md" style={{ fontWeight: 700 }}>
+            Install Krushak App
+          </div>
+          <div className="text-xs muted">
+            Use it offline from your home screen.
+          </div>
         </div>
-        <button className="btn btn-subtle" onClick={handleInstall}>Install</button>
+        <button className="btn btn-subtle" onClick={handleInstall}>
+          Install
+        </button>
       </div>
     </div>
   );

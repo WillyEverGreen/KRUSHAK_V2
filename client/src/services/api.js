@@ -19,7 +19,9 @@ export async function fetchHomeData() {
 }
 
 export async function fetchDiseaseCatalog(query = "") {
-  const { data } = await http.get("/diagnose/catalog", { params: { q: query } });
+  const { data } = await http.get("/diagnose/catalog", {
+    params: { q: query },
+  });
   return data.diseases || [];
 }
 

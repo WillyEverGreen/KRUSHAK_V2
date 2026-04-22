@@ -23,7 +23,8 @@ const languages = [
 
 export default function ProfileScreen() {
   const navigate = useNavigate();
-  const { user, clearSession, languageCode, setLanguageCode } = useSessionStore();
+  const { user, clearSession, languageCode, setLanguageCode } =
+    useSessionStore();
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
 
   const name = user?.fullName || "Farmer User";
@@ -33,16 +34,36 @@ export default function ProfileScreen() {
   return (
     <div>
       <div style={{ height: 20 }} />
-      <div style={{ width: 100, height: 100, borderRadius: 50, background: "#e5e7eb", border: "3px solid #d1d5db", margin: "0 auto", display: "grid", placeItems: "center" }}>
+      <div
+        style={{
+          width: 100,
+          height: 100,
+          borderRadius: 50,
+          background: "#e5e7eb",
+          border: "3px solid #d1d5db",
+          margin: "0 auto",
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
         <MdPerson size={52} color="#9ca3af" />
       </div>
       <div style={{ textAlign: "center" }} className="mt-16">
-        <div className="text-xxl" style={{ fontWeight: 700 }}>{name}</div>
-        <div className="text-sm muted">{village}, {district}</div>
+        <div className="text-xxl" style={{ fontWeight: 700 }}>
+          {name}
+        </div>
+        <div className="text-sm muted">
+          {village}, {district}
+        </div>
       </div>
 
       <div className="card-elevated mt-20">
-        <div className="text-xs muted" style={{ fontWeight: 700, letterSpacing: 1 }}>SETTINGS</div>
+        <div
+          className="text-xs muted"
+          style={{ fontWeight: 700, letterSpacing: 1 }}
+        >
+          SETTINGS
+        </div>
         <ProfileItem
           icon={<MdLanguage size={20} color="#757575" />}
           title={`Change Language (${languageCode.toUpperCase()})`}
@@ -51,7 +72,11 @@ export default function ProfileScreen() {
         <ProfileItem
           icon={<MdAutoAwesome size={20} color="#757575" />}
           title="AI Autopilot"
-          onClick={() => window.alert("Autopilot flow can be connected in the next milestone.")}
+          onClick={() =>
+            window.alert(
+              "Autopilot flow can be connected in the next milestone.",
+            )
+          }
         />
 
         {showLanguagePicker && (
@@ -61,7 +86,8 @@ export default function ProfileScreen() {
                 key={lang.code}
                 className="btn"
                 style={{
-                  background: lang.code === languageCode ? "#e8f5e9" : "#f8faf8",
+                  background:
+                    lang.code === languageCode ? "#e8f5e9" : "#f8faf8",
                   color: "#1b5e20",
                   textAlign: "left",
                   border: "1px solid #e5ece7",
@@ -79,7 +105,12 @@ export default function ProfileScreen() {
       </div>
 
       <div className="card-elevated mt-16">
-        <div className="text-xs muted" style={{ fontWeight: 700, letterSpacing: 1 }}>SUPPORT</div>
+        <div
+          className="text-xs muted"
+          style={{ fontWeight: 700, letterSpacing: 1 }}
+        >
+          SUPPORT
+        </div>
         <ProfileItem
           icon={<MdHelpOutline size={20} color="#757575" />}
           title="Help and FAQ"
@@ -114,7 +145,15 @@ function ProfileItem({ icon, title, onClick, destructive = false }) {
       }}
     >
       {icon}
-      <span style={{ marginLeft: 16, flex: 1, textAlign: "left", color: destructive ? "#ef4444" : "#1b5e20", fontSize: 16 }}>
+      <span
+        style={{
+          marginLeft: 16,
+          flex: 1,
+          textAlign: "left",
+          color: destructive ? "#ef4444" : "#1b5e20",
+          fontSize: 16,
+        }}
+      >
         {title}
       </span>
       {!destructive && <MdChevronRight color="#9ca3af" size={20} />}

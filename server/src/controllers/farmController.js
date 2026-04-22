@@ -48,8 +48,12 @@ export async function getFarmData(req, res, next) {
     let latestDiagnosis = "No recent diagnosis yet";
 
     if (req.user) {
-      reminders = await Reminder.find({ userId: req.user.sub }).sort({ createdAt: -1 }).limit(10);
-      const recentScan = await ScanRecord.findOne({ userId: req.user.sub }).sort({ createdAt: -1 });
+      reminders = await Reminder.find({ userId: req.user.sub })
+        .sort({ createdAt: -1 })
+        .limit(10);
+      const recentScan = await ScanRecord.findOne({
+        userId: req.user.sub,
+      }).sort({ createdAt: -1 });
       if (recentScan) {
         latestDiagnosis = `Latest diagnosis: ${recentScan.diseaseName} (${Math.round(recentScan.confidence * 100)}%)`;
       }
@@ -57,9 +61,24 @@ export async function getFarmData(req, res, next) {
 
     if (!reminders.length) {
       reminders = [
-        { _id: "demo-1", task: "Inspect tomato plants for pests", dueAtLabel: "6:00 AM", done: false },
-        { _id: "demo-2", task: "Apply cow dung fertilizer to wheat", dueAtLabel: "8:00 AM", done: false },
-        { _id: "demo-3", task: "Check irrigation channels", dueAtLabel: "4:00 PM", done: false },
+        {
+          _id: "demo-1",
+          task: "Inspect tomato plants for pests",
+          dueAtLabel: "6:00 AM",
+          done: false,
+        },
+        {
+          _id: "demo-2",
+          task: "Apply cow dung fertilizer to wheat",
+          dueAtLabel: "8:00 AM",
+          done: false,
+        },
+        {
+          _id: "demo-3",
+          task: "Check irrigation channels",
+          dueAtLabel: "4:00 PM",
+          done: false,
+        },
       ];
     }
 
@@ -100,7 +119,10 @@ export async function toggleReminder(req, res, next) {
       return res.status(401).json({ message: "Login required" });
     }
 
-    const reminder = await Reminder.findOne({ _id: req.params.id, userId: req.user.sub });
+    const reminder = await Reminder.findOne({
+      _id: req.params.id,
+      userId: req.user.sub,
+    });
     if (!reminder) {
       return res.status(404).json({ message: "Reminder not found" });
     }
@@ -120,7 +142,10 @@ export async function deleteReminder(req, res, next) {
       return res.status(401).json({ message: "Login required" });
     }
 
-    const deleted = await Reminder.findOneAndDelete({ _id: req.params.id, userId: req.user.sub });
+    const deleted = await Reminder.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user.sub,
+    });
     if (!deleted) {
       return res.status(404).json({ message: "Reminder not found" });
     }

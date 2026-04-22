@@ -20,34 +20,33 @@ export default function App() {
           <Route path="/farm" element={<MyFarmScreen />} />
           <Route path="/market" element={<MarketScreen />} />
           <Route path="/profile" element={<ProfileScreen />} />
+          <Route
+            path="/news"
+            element={
+              <SubpageLayout title="Agri News">
+                <NewsScreen />
+              </SubpageLayout>
+            }
+          />
+
+          <Route
+            path="/chat"
+            element={
+              <SubpageLayout title="Farm Assistant">
+                <ChatScreen />
+              </SubpageLayout>
+            }
+          />
+
+          <Route
+            path="/care-guides"
+            element={
+              <SubpageLayout title="Care Guides">
+                <CareGuidesScreen />
+              </SubpageLayout>
+            }
+          />
         </Route>
-
-        <Route
-          path="/news"
-          element={(
-            <SubpageLayout title="Agri News">
-              <NewsScreen />
-            </SubpageLayout>
-          )}
-        />
-
-        <Route
-          path="/chat"
-          element={(
-            <SubpageLayout title="Farm Assistant">
-              <ChatScreen />
-            </SubpageLayout>
-          )}
-        />
-
-        <Route
-          path="/care-guides"
-          element={(
-            <SubpageLayout title="Care Guides">
-              <CareGuidesScreen />
-            </SubpageLayout>
-          )}
-        />
 
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="*" element={<Navigate to="/home" replace />} />
