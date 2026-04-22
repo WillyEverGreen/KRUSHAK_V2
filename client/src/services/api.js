@@ -104,7 +104,7 @@ export async function deleteReminder(id) {
 export async function fetchMarketPrices(params = {}) {
   return withOfflineFallback(`market_${JSON.stringify(params)}`, async () => {
     const { data } = await http.get("/market/prices", { params });
-    return data.prices || [];
+    return data;
   });
 }
 
