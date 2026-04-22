@@ -96,11 +96,12 @@ export default function HomeScreen() {
                   <div
                     style={{
                       width: 32, height: 32, borderRadius: 16,
-                      background: "rgba(255,255,255,0.25)",
-                      display: "grid", placeItems: "center", flexShrink: 0
+                      background: "#fff",
+                      display: "grid", placeItems: "center", flexShrink: 0,
+                      overflow: "hidden"
                     }}
                   >
-                    <MdEco size={18} />
+                    <img src="/logo.png" alt="Krushak Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                   </div>
                   <p className="hero-subtitle" style={{ margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {data.greeting}

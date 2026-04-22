@@ -27,8 +27,8 @@ export default function AuthScreen() {
       <div className="auth-card">
         {/* Logo / branding */}
         <div className="auth-logo">
-          <div className="auth-logo-icon">
-            <MdEco size={32} color="#fff" />
+          <div className="auth-logo-icon" style={{ padding: 0, overflow: "hidden", background: "#fff" }}>
+            <img src="/logo.png" alt="Krushak Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
           </div>
           <div>
             <div className="auth-logo-title">Krushak</div>
