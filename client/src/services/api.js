@@ -64,10 +64,32 @@ export async function fetchMarketPrices(params = {}) {
   });
 }
 
-export async function fetchNews(scope = "global", location = "maharashtra") {
-  return withOfflineFallback(`news_${scope}_${location}`, async () => {
-    const { data } = await http.get("/news", { params: { scope, location } });
-    return data.articles || [];
+export async function fetchNews({
+  scope = "global",
+  location = "India",
+  latitude,
+  longitude,
+} = {}) {
+  const cacheKey = `news_v2_${scope}_${location}_${latitude ?? "na"}_${longitude ?? "na"}`;
+
+
+  return withOfflineFallback(cacheKey, async () => {
+    const params = {
+      scope,
+      location,
+    };
+
+    if (typeof latitude === "number" && typeof longitude === "number") {
+      params.lat = latitude;
+      params.lon = longitude;
+    }
+
+    const { data } = await http.get("/news", { params });
+    return {
+      articles: data.articles || [],
+      scope: data.scope || scope,
+      resolvedLocation: data.resolvedLocation || location,
+    };
   });
 }
 
