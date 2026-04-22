@@ -21,6 +21,8 @@ const envSchema = z.object({
   MONGO_URI: z.string().min(1, "MONGO_URI is required"),
   JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
   CLIENT_ORIGIN: z.string().url().default("http://localhost:5173"),
+  GEMINI_API_KEY: z.string().min(1).optional(),
+  GEMINI_MODEL: z.string().min(1).default("gemini-3.1-pro-preview"),
 });
 
 const parsed = envSchema.safeParse(process.env);

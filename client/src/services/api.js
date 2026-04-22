@@ -25,6 +25,13 @@ export async function fetchDiseaseCatalog(query = "") {
   return data.diseases || [];
 }
 
+export async function analyzePlantImage(payload) {
+  const { data } = await http.post("/diagnose/analyze", payload, {
+    timeout: 45_000,
+  });
+  return data.analysis;
+}
+
 export async function fetchRecentDiagnoses() {
   const { data } = await http.get("/diagnose/recent");
   return data.recent || [];

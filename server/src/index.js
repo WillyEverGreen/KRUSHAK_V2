@@ -21,7 +21,7 @@ const limiter = rateLimit({
 app.use(helmet());
 app.use(limiter);
 app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: false }));
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "8mb" }));
 app.use(morgan("dev"));
 
 app.get("/health", (_req, res) => {
@@ -35,11 +35,22 @@ app.use(notFound);
 app.use(errorHandler);
 
 async function bootstrap() {
-  await connectDatabase(env.MONGO_URI);
   app.listen(env.PORT, () => {
     // eslint-disable-next-line no-console
     console.log(`Server running on port ${env.PORT}`);
   });
+
+  try {
+    await connectDatabase(env.MONGO_URI);
+    // eslint-disable-next-line no-console
+    console.log("Database connected");
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(
+      "Database connection failed. Running API in degraded mode without MongoDB.",
+      error.message,
+    );
+  }
 }
 
 bootstrap().catch((error) => {

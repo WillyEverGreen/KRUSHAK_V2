@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getHomeData } from "../controllers/homeController.js";
 import {
+  analyzePlantImage,
   createScanRecord,
   getDiseaseCatalog,
   getRecentDiagnoses,
@@ -25,6 +26,7 @@ const router = Router();
 router.get("/home", optionalAuth, getHomeData);
 
 router.get("/diagnose/catalog", getDiseaseCatalog);
+router.post("/diagnose/analyze", optionalAuth, analyzePlantImage);
 router.get("/diagnose/recent", optionalAuth, getRecentDiagnoses);
 router.post("/diagnose/records", requireAuth, createScanRecord);
 
