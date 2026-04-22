@@ -21,12 +21,16 @@ const envSchema = z.object({
   MONGO_URI: z.string().min(1, "MONGO_URI is required"),
   JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
   CLIENT_ORIGIN: z.string().url().default("http://localhost:5173"),
-  MANDI_API_KEY: z.string().optional().default(""),
-  GNEWS_API_KEY: z.string().optional().default(""),
-  GNEWS_COUNTRY: z.string().optional().default("in"),
+  MANDI_API_KEY:   z.string().optional().default(""),
+  GNEWS_API_KEY:   z.string().optional().default(""),
+  GNEWS_COUNTRY:   z.string().optional().default("in"),
   NEWSDATA_API_KEY: z.string().optional().default(""),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().default("gemini-2.0-flash"),
+  /* Provider hints — all optional, safe defaults */
+  WEATHER_PROVIDER: z.string().optional().default("open-meteo"),
+  MARKET_PROVIDER:  z.string().optional().default("data.gov.in"),
+  NEWS_PROVIDER:    z.string().optional().default("gnews+newsdata"),
 });
 
 const parsed = envSchema.safeParse(process.env);

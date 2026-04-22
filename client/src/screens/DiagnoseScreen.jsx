@@ -6,7 +6,9 @@ import {
   MdSearch,
   MdWarningAmber,
 } from "react-icons/md";
-import { fetchDiseaseCatalog, fetchRecentDiagnoses } from "../services/api";
+import { fetchDiseaseCatalog, fetchRecentDiagnoses, fetchDiseaseAdvisory } from "../services/api";
+import DataState from "../components/DataState";
+import FreshnessTag from "../components/FreshnessTag";
 
 function severityColor(severity) {
   if (severity === "High") return "#ef4444";
@@ -17,15 +19,22 @@ function severityColor(severity) {
 export default function DiagnoseScreen() {
   const [query, setQuery] = useState("");
 
-  const { data: diseaseList = [] } = useQuery({
+  const { data: catalogData, isLoading: catalogLoading, error: catalogError } = useQuery({
     queryKey: ["disease-catalog", query],
     queryFn: () => fetchDiseaseCatalog(query),
+  });
+
+  const { data: advisoryData } = useQuery({
+    queryKey: ["disease-advisory"],
+    queryFn: fetchDiseaseAdvisory,
   });
 
   const { data: recent = [] } = useQuery({
     queryKey: ["recent-diagnoses"],
     queryFn: fetchRecentDiagnoses,
   });
+
+  const diseaseList = catalogData?.diseases || [];
 
   const headline = useMemo(() => {
     if (!query.trim()) return "Diagnose Disease";
@@ -76,34 +85,60 @@ export default function DiagnoseScreen() {
         Scan Your Crop
       </button>
 
-      {/* Local pest alerts moved to News/Advisory module; remove static village alert */}
-
-      <div className="text-xl mt-16" style={{ fontWeight: 800 }}>
-        Common Diseases
-      </div>
-      <div className="mt-10" style={{ display: "grid", gap: 10 }}>
-        {diseaseList.map((item) => (
-          <div className="card" key={`${item.name}-${item.crop}`}>
-            <div className="row-between">
-              <div className="text-lg" style={{ fontWeight: 700 }}>
-                {item.name}
-              </div>
-              <div
-                className="text-sm"
-                style={{ fontWeight: 700, color: severityColor(item.severity) }}
-              >
-                {item.severity}
-              </div>
+      {advisoryData?.alerts?.length > 0 && !query.trim() && (
+        <div className="card mt-16" style={{ background: "#fff5f5", borderColor: "#fed7d7" }}>
+          <div className="row-between">
+            <div className="row" style={{ alignItems: "center", color: "#c53030" }}>
+              <MdWarningAmber size={20} />
+              <div className="text-md" style={{ fontWeight: 800 }}>Seasonal Advisory ({advisoryData.season})</div>
             </div>
-            <div className="text-sm mt-8 muted" style={{ fontWeight: 600 }}>
-              Crop: {item.crop}
-            </div>
-            <div className="text-sm muted mt-8">{item.symptom}</div>
+            <FreshnessTag generatedAt={advisoryData.generatedAt} />
           </div>
-        ))}
+          <div className="mt-8 text-sm muted">{advisoryData.message}</div>
+          <div className="mt-8" style={{ display: "grid", gap: 6 }}>
+            {advisoryData.alerts.map((a, i) => (
+              <div key={i} className="text-sm" style={{ fontWeight: 600 }}>
+                • {a.crop}: <span style={{ color: "#c53030" }}>{a.disease}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="row-between mt-16">
+        <div className="text-xl" style={{ fontWeight: 800 }}>
+          Common Diseases
+        </div>
+        {catalogData?.generatedAt && (
+          <FreshnessTag generatedAt={catalogData.generatedAt} />
+        )}
       </div>
 
-      {recent.length > 0 && (
+      <div className="mt-10" style={{ display: "grid", gap: 10 }}>
+        <DataState loading={catalogLoading} error={catalogError} empty={diseaseList.length === 0} emptyMessage="No diseases found.">
+          {diseaseList.map((item) => (
+            <div className="card" key={`${item.name}-${item.crop}`}>
+              <div className="row-between">
+                <div className="text-lg" style={{ fontWeight: 700 }}>
+                  {item.name}
+                </div>
+                <div
+                  className="text-sm"
+                  style={{ fontWeight: 700, color: severityColor(item.severity) }}
+                >
+                  {item.severity}
+                </div>
+              </div>
+              <div className="text-sm mt-8 muted" style={{ fontWeight: 600 }}>
+                Crop: {item.crop}
+              </div>
+              <div className="text-sm muted mt-8" style={{ lineHeight: 1.4 }}>{item.symptom}</div>
+            </div>
+          ))}
+        </DataState>
+      </div>
+
+      {recent.length > 0 && !query.trim() && (
         <>
           <div className="text-lg mt-16" style={{ fontWeight: 800 }}>
             Recent AI Diagnoses

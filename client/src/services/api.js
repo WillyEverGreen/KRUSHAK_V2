@@ -18,6 +18,18 @@ export async function fetchHomeData() {
   });
 }
 
+export async function fetchWeather({ latitude, longitude, timezone } = {}) {
+  const cacheKey = `weather_${latitude ?? "def"}_${longitude ?? "def"}`;
+  return withOfflineFallback(cacheKey, async () => {
+    const params = {};
+    if (typeof latitude === "number")  params.lat = latitude;
+    if (typeof longitude === "number") params.lon = longitude;
+    if (timezone) params.timezone = timezone;
+    const { data } = await http.get("/weather", { params });
+    return data;
+  });
+}
+
 export async function fetchDiseaseCatalog(query = "") {
   const { data } = await http.get("/diagnose/catalog", {
     params: { q: query },
@@ -38,6 +50,38 @@ export async function saveDiagnosisRecord(payload) {
 export async function fetchFarmData() {
   return withOfflineFallback("farm", async () => {
     const { data } = await http.get("/farm");
+    return data;
+  });
+}
+
+export async function fetchCrops({ lat, lon } = {}) {
+  return withOfflineFallback("crops", async () => {
+    const params = {};
+    if (typeof lat === "number") params.lat = lat;
+    if (typeof lon === "number") params.lon = lon;
+    const { data } = await http.get("/farm/crops", { params });
+    return data;
+  });
+}
+
+export async function addCrop(payload) {
+  const { data } = await http.post("/farm/crops", payload);
+  return data.crop;
+}
+
+export async function updateCrop(id, payload) {
+  const { data } = await http.patch(`/farm/crops/${id}`, payload);
+  return data.crop;
+}
+
+export async function deleteCrop(id) {
+  const { data } = await http.delete(`/farm/crops/${id}`);
+  return data.success;
+}
+
+export async function fetchDiseaseAdvisory() {
+  return withOfflineFallback("disease_advisory", async () => {
+    const { data } = await http.get("/diagnose/advisory");
     return data;
   });
 }
