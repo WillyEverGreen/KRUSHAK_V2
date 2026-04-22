@@ -1,13 +1,59 @@
 import { z } from "zod";
 import { Reminder } from "../models/Reminder.js";
 import { ScanRecord } from "../models/ScanRecord.js";
+import { Livestock, LIVESTOCK_TYPES } from "../models/Livestock.js";
+import { Crop } from "../models/Crop.js";
 import { getWeatherStale } from "../services/weatherService.js";
 
-/* ─── Weather-aware livestock tips ─────────────────────────────────────── */
-function buildLivestockTips(weather) {
+/* ─── Quick reminder templates (API-backed hints for UI) ──────────────── */
+const QUICK_REMINDER_TEMPLATES = [
+  {
+    id: "irrigation-evening",
+    title: "Irrigation Check",
+    task: "Check irrigation channels and moisture",
+    dueAtLabel: "Today 6:00 PM",
+    category: "irrigation",
+    priority: "medium",
+  },
+  {
+    id: "spray-morning",
+    title: "Pest Spray",
+    task: "Inspect pest level and prepare spray",
+    dueAtLabel: "Tomorrow 6:00 AM",
+    category: "spray",
+    priority: "high",
+  },
+  {
+    id: "feed-livestock",
+    title: "Feed Livestock",
+    task: "Feed livestock and refill water trough",
+    dueAtLabel: "Today 7:00 PM",
+    category: "livestock-feed",
+    priority: "high",
+  },
+  {
+    id: "farm-walk",
+    title: "Morning Walkthrough",
+    task: "Morning field walk and disease inspection",
+    dueAtLabel: "Tomorrow 6:30 AM",
+    category: "crop",
+    priority: "medium",
+  },
+];
+
+/* ─── Weather-aware livestock tips ────────────────────────────────────── */
+function buildLivestockTips(weather, livestockList) {
   const temp = weather?.tempMax ?? 28;
   const rain = weather?.precipitation ?? 0;
+  const totalAnimals = livestockList.reduce((sum, item) => sum + (item.count || 0), 0);
   const tips = [];
+
+  if (totalAnimals > 0) {
+    tips.push({
+      title: "Livestock Count",
+      tip: `You are tracking ${totalAnimals} animals. Keep feed and water logs updated daily for stable health trends.`,
+    });
+  }
 
   if (temp > 40) {
     tips.push({
@@ -60,46 +106,93 @@ function annotateReminders(reminders, weather) {
 }
 
 const reminderInputSchema = z.object({
-  task:       z.string().min(2),
-  dueAtLabel: z.string().min(2),
+  task: z.string().min(2),
+  dueAtLabel: z.string().min(2).default("Today 6:00 PM"),
+  category: z
+    .enum([
+      "general",
+      "crop",
+      "irrigation",
+      "spray",
+      "harvest",
+      "livestock-feed",
+      "livestock-health",
+    ])
+    .default("general"),
+  priority: z.enum(["low", "medium", "high"]).default("medium"),
+  targetType: z.string().optional().default(""),
+  targetId: z.string().optional().default(""),
+});
+
+const livestockInputSchema = z.object({
+  type: z.enum(LIVESTOCK_TYPES),
+  name: z.string().max(60).optional().default(""),
+  count: z.coerce.number().min(1).max(10000).default(1),
+  healthScore: z.coerce.number().min(0).max(1).default(0.8),
+  lastFedAtLabel: z.string().max(80).optional().default(""),
+  feedIntervalHours: z.coerce.number().min(1).max(48).default(12),
+  notes: z.string().max(500).optional().default(""),
+});
+
+const livestockUpdateSchema = livestockInputSchema.partial();
+
+const feedReminderInputSchema = z.object({
+  dueAtLabel: z.string().min(2).default("Today 7:00 PM"),
 });
 
 export async function getFarmData(req, res, next) {
   try {
     let reminders = [];
     let latestDiagnosis = "No recent diagnosis yet";
+    let livestock = [];
+    let cropCards = [];
 
     if (req.user) {
-      reminders = await Reminder.find({ userId: req.user.sub })
-        .sort({ createdAt: -1 })
-        .limit(10);
+      const [dbReminders, recentScan, livestockDocs, crops] = await Promise.all([
+        Reminder.find({ userId: req.user.sub })
+          .sort({ done: 1, createdAt: -1 })
+          .limit(25),
+        ScanRecord.findOne({ userId: req.user.sub }).sort({ createdAt: -1 }),
+        Livestock.find({ userId: req.user.sub }).sort({ createdAt: -1 }).limit(30),
+        Crop.find({ userId: req.user.sub }).sort({ createdAt: -1 }).limit(12),
+      ]);
 
-      const recentScan = await ScanRecord.findOne({ userId: req.user.sub }).sort({ createdAt: -1 });
+      reminders = dbReminders;
+      livestock = livestockDocs.map((item) => ({
+        _id: item._id,
+        type: item.type,
+        name: item.name,
+        count: item.count,
+        healthScore: item.healthScore,
+        lastFedAtLabel: item.lastFedAtLabel,
+        feedIntervalHours: item.feedIntervalHours,
+        notes: item.notes,
+        createdAt: item.createdAt,
+      }));
+
+      cropCards = crops.map((crop) => ({
+        _id: crop._id,
+        name: crop.name,
+        stage: crop.stage,
+      }));
+
       if (recentScan) {
         latestDiagnosis = `Latest: ${recentScan.diseaseName} (${Math.round(recentScan.confidence * 100)}%)`;
       }
     }
 
-    /* Demo reminders when user has none */
-    const isDemo = reminders.length === 0;
-    if (isDemo) {
-      reminders = [
-        { _id: "demo-1", task: "Inspect plants for pests", dueAtLabel: "6:00 AM", done: false },
-        { _id: "demo-2", task: "Apply fertilizer to wheat field", dueAtLabel: "8:00 AM", done: false },
-        { _id: "demo-3", task: "Check irrigation channels", dueAtLabel: "4:00 PM", done: false },
-      ];
-    }
-
     /* Best-effort weather for annotations */
     const weather = getWeatherStale(28.6, 77.2);
     const annotated = annotateReminders(reminders, weather);
-    const livestock = buildLivestockTips(weather);
+    const livestockTips = buildLivestockTips(weather, livestock);
 
     return res.status(200).json({
       latestDiagnosis,
       reminders: annotated,
-      isDemo,
-      livestockTips: livestock,
+      livestock,
+      livestockTips,
+      cropCards,
+      quickReminderTemplates: QUICK_REMINDER_TEMPLATES,
       generatedAt: new Date().toISOString(),
       weatherSummary: weather ? `${weather.tempMax}°C · ${weather.summary}` : null,
     });
@@ -116,6 +209,10 @@ export async function addReminder(req, res, next) {
       userId: req.user.sub,
       task: payload.task,
       dueAtLabel: payload.dueAtLabel,
+      category: payload.category,
+      priority: payload.priority,
+      targetType: payload.targetType,
+      targetId: payload.targetId,
       done: false,
     });
     return res.status(201).json({ reminder });
@@ -143,6 +240,102 @@ export async function deleteReminder(req, res, next) {
     const deleted = await Reminder.findOneAndDelete({ _id: req.params.id, userId: req.user.sub });
     if (!deleted) return res.status(404).json({ message: "Reminder not found" });
     return res.status(200).json({ success: true });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getLivestock(req, res, next) {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Login required" });
+    const livestock = await Livestock.find({ userId: req.user.sub }).sort({ createdAt: -1 });
+    return res.status(200).json({ livestock });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function addLivestock(req, res, next) {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Login required" });
+    const payload = livestockInputSchema.parse(req.body);
+    const livestock = await Livestock.create({
+      userId: req.user.sub,
+      type: payload.type,
+      name: payload.name,
+      count: payload.count,
+      healthScore: payload.healthScore,
+      lastFedAtLabel: payload.lastFedAtLabel,
+      feedIntervalHours: payload.feedIntervalHours,
+      notes: payload.notes,
+    });
+    return res.status(201).json({ livestock });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateLivestock(req, res, next) {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Login required" });
+    const payload = livestockUpdateSchema.parse(req.body);
+
+    const livestock = await Livestock.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.sub },
+      { $set: payload },
+      { new: true },
+    );
+
+    if (!livestock) {
+      return res.status(404).json({ message: "Livestock entry not found" });
+    }
+
+    return res.status(200).json({ livestock });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteLivestock(req, res, next) {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Login required" });
+    const deleted = await Livestock.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user.sub,
+    });
+
+    if (!deleted) {
+      return res.status(404).json({ message: "Livestock entry not found" });
+    }
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function addLivestockFeedReminder(req, res, next) {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Login required" });
+
+    const payload = feedReminderInputSchema.parse(req.body || {});
+    const livestock = await Livestock.findOne({ _id: req.params.id, userId: req.user.sub });
+    if (!livestock) {
+      return res.status(404).json({ message: "Livestock entry not found" });
+    }
+
+    const reminder = await Reminder.create({
+      userId: req.user.sub,
+      task: `Feed ${livestock.name || livestock.type} (${livestock.count})`,
+      dueAtLabel: payload.dueAtLabel,
+      category: "livestock-feed",
+      priority: "high",
+      targetType: "livestock",
+      targetId: livestock._id.toString(),
+      done: false,
+    });
+
+    return res.status(201).json({ reminder });
   } catch (error) {
     return next(error);
   }

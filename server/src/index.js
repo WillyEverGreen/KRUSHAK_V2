@@ -20,9 +20,28 @@ const limiter = rateLimit({
 
 app.use(helmet());
 app.use(limiter);
-app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: false }));
+
+// Support comma-separated origins and same-domain Vercel deployments
+const allowedOrigins = (env.CLIENT_ORIGIN || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow same-domain (Vercel) or no-origin (server-to-server / health checks)
+      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.length === 0) {
+        return callback(null, true);
+      }
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
+    credentials: false,
+  }),
+);
 app.use(express.json({ limit: "8mb" }));
 app.use(morgan("dev"));
+
 
 app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok", service: "krushak-pwa-server" });

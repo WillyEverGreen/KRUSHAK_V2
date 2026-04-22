@@ -23,7 +23,7 @@ export async function fetchWeather({ latitude, longitude, timezone } = {}) {
   const cacheKey = `weather_${latitude ?? "def"}_${longitude ?? "def"}`;
   return withOfflineFallback(cacheKey, async () => {
     const params = {};
-    if (typeof latitude === "number")  params.lat = latitude;
+    if (typeof latitude === "number") params.lat = latitude;
     if (typeof longitude === "number") params.lon = longitude;
     if (timezone) params.timezone = timezone;
     const { data } = await http.get("/weather", { params });
@@ -113,6 +113,31 @@ export async function deleteReminder(id) {
   return data.success;
 }
 
+export async function fetchLivestock() {
+  const { data } = await http.get("/farm/livestock");
+  return data.livestock || [];
+}
+
+export async function addLivestock(payload) {
+  const { data } = await http.post("/farm/livestock", payload);
+  return data.livestock;
+}
+
+export async function updateLivestock(id, payload) {
+  const { data } = await http.patch(`/farm/livestock/${id}`, payload);
+  return data.livestock;
+}
+
+export async function deleteLivestock(id) {
+  const { data } = await http.delete(`/farm/livestock/${id}`);
+  return data.success;
+}
+
+export async function addLivestockFeedReminder(id, payload = {}) {
+  const { data } = await http.post(`/farm/livestock/${id}/feed-reminder`, payload);
+  return data.reminder;
+}
+
 export async function fetchMarketPrices(params = {}) {
   return withOfflineFallback(`market_${JSON.stringify(params)}`, async () => {
     const { data } = await http.get("/market/prices", { params });
@@ -127,7 +152,6 @@ export async function fetchNews({
   longitude,
 } = {}) {
   const cacheKey = `news_v2_${scope}_${location}_${latitude ?? "na"}_${longitude ?? "na"}`;
-
 
   return withOfflineFallback(cacheKey, async () => {
     const params = {

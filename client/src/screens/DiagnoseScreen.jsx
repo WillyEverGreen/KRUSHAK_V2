@@ -1,6 +1,11 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { MdAnalytics, MdCameraAlt, MdSearch, MdWarningAmber } from "react-icons/md";
+import {
+  MdAnalytics,
+  MdCameraAlt,
+  MdSearch,
+  MdWarningAmber,
+} from "react-icons/md";
 import { useNavigate } from "react-router-dom";
 import {
   analyzePlantImage,
@@ -24,7 +29,11 @@ export default function DiagnoseScreen() {
   const [scanError, setScanError] = useState("");
   const fileInputRef = useRef(null);
 
-  const { data: catalogData, isLoading: catalogLoading, error: catalogError } = useQuery({
+  const {
+    data: catalogData,
+    isLoading: catalogLoading,
+    error: catalogError,
+  } = useQuery({
     queryKey: ["disease-catalog", query],
     queryFn: () => fetchDiseaseCatalog(query),
   });
@@ -142,11 +151,19 @@ export default function DiagnoseScreen() {
       )}
 
       {advisoryData?.alerts?.length > 0 && !query.trim() && (
-        <div className="card mt-16" style={{ background: "#fff5f5", borderColor: "#fed7d7" }}>
+        <div
+          className="card mt-16"
+          style={{ background: "#fff5f5", borderColor: "#fed7d7" }}
+        >
           <div className="row-between">
-            <div className="row" style={{ alignItems: "center", color: "#c53030" }}>
+            <div
+              className="row"
+              style={{ alignItems: "center", color: "#c53030" }}
+            >
               <MdWarningAmber size={20} />
-              <div className="text-md" style={{ fontWeight: 800 }}>Seasonal Advisory ({advisoryData.season})</div>
+              <div className="text-md" style={{ fontWeight: 800 }}>
+                Seasonal Advisory ({advisoryData.season})
+              </div>
             </div>
             <FreshnessTag generatedAt={advisoryData.generatedAt} />
           </div>
@@ -154,7 +171,8 @@ export default function DiagnoseScreen() {
           <div className="mt-8" style={{ display: "grid", gap: 6 }}>
             {advisoryData.alerts.map((a, i) => (
               <div key={i} className="text-sm" style={{ fontWeight: 600 }}>
-                • {a.crop}: <span style={{ color: "#c53030" }}>{a.disease}</span>
+                • {a.crop}:{" "}
+                <span style={{ color: "#c53030" }}>{a.disease}</span>
               </div>
             ))}
           </div>
@@ -171,7 +189,12 @@ export default function DiagnoseScreen() {
       </div>
 
       <div className="mt-10" style={{ display: "grid", gap: 10 }}>
-        <DataState loading={catalogLoading} error={catalogError} empty={diseaseList.length === 0} emptyMessage="No diseases found.">
+        <DataState
+          loading={catalogLoading}
+          error={catalogError}
+          empty={diseaseList.length === 0}
+          emptyMessage="No diseases found."
+        >
           {diseaseList.map((item) => (
             <div className="card" key={`${item.name}-${item.crop}`}>
               <div className="row-between">
@@ -180,7 +203,10 @@ export default function DiagnoseScreen() {
                 </div>
                 <div
                   className="text-sm"
-                  style={{ fontWeight: 700, color: severityColor(item.severity) }}
+                  style={{
+                    fontWeight: 700,
+                    color: severityColor(item.severity),
+                  }}
                 >
                   {item.severity}
                 </div>
@@ -188,7 +214,9 @@ export default function DiagnoseScreen() {
               <div className="text-sm mt-8 muted" style={{ fontWeight: 600 }}>
                 Crop: {item.crop}
               </div>
-              <div className="text-sm muted mt-8" style={{ lineHeight: 1.4 }}>{item.symptom}</div>
+              <div className="text-sm muted mt-8" style={{ lineHeight: 1.4 }}>
+                {item.symptom}
+              </div>
             </div>
           ))}
         </DataState>

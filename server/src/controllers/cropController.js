@@ -2,37 +2,6 @@ import { z } from "zod";
 import { Crop, STAGES } from "../models/Crop.js";
 import { getWeather, getWeatherStale } from "../services/weatherService.js";
 
-/* ─── Demo crops shown when no user is logged in ─────────────── */
-const DEMO_CROPS = [
-  {
-    _id:            "demo-crop-1",
-    name:           "Wheat",
-    variety:        "HD-2967",
-    stage:          "Vegetative",
-    sowingDate:     null,
-    fieldSizeAcres: 2,
-    notes:          "",
-  },
-  {
-    _id:            "demo-crop-2",
-    name:           "Tomato",
-    variety:        "Cherry",
-    stage:          "Flowering",
-    sowingDate:     null,
-    fieldSizeAcres: 0.5,
-    notes:          "",
-  },
-  {
-    _id:            "demo-crop-3",
-    name:           "Rice",
-    variety:        "Basmati",
-    stage:          "Sowing",
-    sowingDate:     null,
-    fieldSizeAcres: 1,
-    notes:          "",
-  },
-];
-
 const cropInputSchema = z.object({
   name:           z.string().min(2).max(60),
   variety:        z.string().max(60).default(""),
@@ -81,7 +50,7 @@ function suggestAction(crop, weather) {
   return "Inspect daily and record observations.";
 }
 
-/** List all crops — returns demo data when not authenticated */
+/** List all crops */
 export async function getCrops(req, res, next) {
   try {
     // Fetch weather (best-effort; don't fail if unavailable)
@@ -94,19 +63,11 @@ export async function getCrops(req, res, next) {
       weather = getWeatherStale(28.6, 77.2);
     }
 
-    /* No user → return demo crops so farmers can see the UI */
+    /* No user -> no crops */
     if (!req.user) {
-      const enriched = DEMO_CROPS.map((crop) => ({
-        ...crop,
-        health:  computeHealth(crop, weather),
-        water:   (weather?.precipitation ?? 0) > 3 ? "Rain expected" : "Check irrigation",
-        action:  suggestAction(crop, weather),
-        createdAt: new Date().toISOString(),
-        isDemo:  true,
-      }));
       return res.status(200).json({
-        crops:       enriched,
-        isDemo:      true,
+        crops:       [],
+        isDemo:      false,
         generatedAt: new Date().toISOString(),
       });
     }

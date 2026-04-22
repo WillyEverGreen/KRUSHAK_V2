@@ -20,7 +20,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(5000),
   MONGO_URI: z.string().min(1, "MONGO_URI is required"),
   JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
-  CLIENT_ORIGIN: z.string().url().default("http://localhost:5173"),
+  CLIENT_ORIGIN: z.string().default("http://localhost:5173"),
   MANDI_API_KEY: z.string().optional().default(""),
   GNEWS_API_KEY: z.string().optional().default(""),
   GNEWS_COUNTRY: z.string().optional().default("in"),

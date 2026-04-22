@@ -9,9 +9,14 @@ import {
 } from "../controllers/diagnoseController.js";
 import {
   addReminder,
+  addLivestock,
+  addLivestockFeedReminder,
   deleteReminder,
+  deleteLivestock,
   getFarmData,
+  getLivestock,
   toggleReminder,
+  updateLivestock,
 } from "../controllers/farmController.js";
 import {
   getCrops,
@@ -46,6 +51,11 @@ router.get("/farm",                          optionalAuth, getFarmData);
 router.post("/farm/reminders",               requireAuth,  addReminder);
 router.patch("/farm/reminders/:id/toggle",   requireAuth,  toggleReminder);
 router.delete("/farm/reminders/:id",         requireAuth,  deleteReminder);
+router.get("/farm/livestock",                requireAuth,  getLivestock);
+router.post("/farm/livestock",               requireAuth,  addLivestock);
+router.patch("/farm/livestock/:id",          requireAuth,  updateLivestock);
+router.delete("/farm/livestock/:id",         requireAuth,  deleteLivestock);
+router.post("/farm/livestock/:id/feed-reminder", requireAuth, addLivestockFeedReminder);
 
 /* ── Crops (user's registered crop list) ─────────────────────────────── */
 router.get("/farm/crops",        optionalAuth, getCrops);   // demo crops when logged out

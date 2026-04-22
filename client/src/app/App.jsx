@@ -22,7 +22,7 @@ export default function App() {
 
         {/* ── Main app shell ── */}
         <Route element={<MobileShell />}>
-          <Route path="/home"     element={<HomeScreen />} />
+          <Route path="/home" element={<HomeScreen />} />
           <Route path="/diagnose" element={<DiagnoseScreen />} />
           <Route
             path="/diagnose/result"
@@ -32,9 +32,9 @@ export default function App() {
               </SubpageLayout>
             }
           />
-          <Route path="/farm"     element={<MyFarmScreen />} />
-          <Route path="/market"   element={<MarketScreen />} />
-          <Route path="/profile"  element={<ProfileScreen />} />
+          <Route path="/farm" element={<MyFarmScreen />} />
+          <Route path="/market" element={<MarketScreen />} />
+          <Route path="/profile" element={<ProfileScreen />} />
 
           <Route
             path="/news"
@@ -73,8 +73,8 @@ export default function App() {
           />
         </Route>
 
-        <Route path="/"  element={<Navigate to="/home" replace />} />
-        <Route path="*"  element={<Navigate to="/home" replace />} />
+        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </div>
   );

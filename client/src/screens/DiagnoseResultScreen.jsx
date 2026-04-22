@@ -75,7 +75,9 @@ export default function DiagnoseResultScreen() {
   const [analysisFromCache, setAnalysisFromCache] = useState(
     Boolean(location.state?.fromCache),
   );
-  const [lastFileName, setLastFileName] = useState(location.state?.fileName || "");
+  const [lastFileName, setLastFileName] = useState(
+    location.state?.fileName || "",
+  );
   const [scanError, setScanError] = useState("");
 
   const analyzeMutation = useMutation({
@@ -152,7 +154,10 @@ export default function DiagnoseResultScreen() {
           <div className="text-sm muted mt-8">
             Upload a plant image from Diagnose page or use Scan Again here.
           </div>
-          <button className="btn btn-subtle mt-12" onClick={() => navigate("/diagnose")}>
+          <button
+            className="btn btn-subtle mt-12"
+            onClick={() => navigate("/diagnose")}
+          >
             Go To Diagnose
           </button>
         </div>
@@ -191,7 +196,10 @@ export default function DiagnoseResultScreen() {
           <div className="row mt-8" style={{ flexWrap: "wrap" }}>
             {lastFileName && <div className="chip">Image: {lastFileName}</div>}
             {analysisFromCache && (
-              <div className="chip" style={{ background: "#e8f0ff", color: "#1e40af" }}>
+              <div
+                className="chip"
+                style={{ background: "#e8f0ff", color: "#1e40af" }}
+              >
                 <MdAccessTime size={14} style={{ marginRight: 6 }} />
                 Cached match
               </div>
@@ -216,7 +224,10 @@ export default function DiagnoseResultScreen() {
               }}
             >
               <div className="text-xs muted">Crop</div>
-              <div className="text-md" style={{ color: "#1b5e20", fontWeight: 700 }}>
+              <div
+                className="text-md"
+                style={{ color: "#1b5e20", fontWeight: 700 }}
+              >
                 {analysis.crop}
               </div>
             </div>
@@ -230,7 +241,10 @@ export default function DiagnoseResultScreen() {
               }}
             >
               <div className="text-xs muted">Disease</div>
-              <div className="text-md" style={{ color: "#1b5e20", fontWeight: 700 }}>
+              <div
+                className="text-md"
+                style={{ color: "#1b5e20", fontWeight: 700 }}
+              >
                 {analysis.disease}
               </div>
             </div>
@@ -246,7 +260,10 @@ export default function DiagnoseResultScreen() {
               minHeight: 128,
             }}
           >
-            <div className="text-xs" style={{ fontWeight: 800, color: "#2e7d32" }}>
+            <div
+              className="text-xs"
+              style={{ fontWeight: 800, color: "#2e7d32" }}
+            >
               Model Reasoning
             </div>
             <div className="text-sm muted mt-8" style={{ lineHeight: 1.45 }}>
@@ -298,7 +315,10 @@ export default function DiagnoseResultScreen() {
         </div>
       )}
 
-      <div className="mt-12" style={{ display: "flex", justifyContent: "center" }}>
+      <div
+        className="mt-12"
+        style={{ display: "flex", justifyContent: "center" }}
+      >
         <button
           className="btn btn-primary"
           disabled={analyzeMutation.isPending}

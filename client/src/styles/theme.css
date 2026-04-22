@@ -933,6 +933,71 @@ textarea {
   transform: scale(0.97);
 }
 
+.farm-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #ffffff;
+  color: var(--primary-green);
+  border: 1px solid #d6e8d8;
+  border-radius: 12px;
+  padding: 10px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+}
+
+.farm-action-btn--solo {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 13px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
+  border-color: #b2dfb5;
+}
+
+.farm-action-btn:hover {
+  transform: translateY(-1px);
+  border-color: #9ccc9f;
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.13);
+}
+
+.farm-action-btn:active {
+  transform: scale(0.98);
+}
+
+.farm-quick-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.farm-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #d6e8d8;
+  border-radius: 999px;
+  background: #f8fbf8;
+  color: #1b5e20;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.farm-quick-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.farm-quick-btn:hover:not(:disabled) {
+  background: #e8f5e9;
+}
+
 /* ── Diagnosis Banner ────────────────────────────────────────── */
 .farm-diagnosis-banner {
   display: flex;
@@ -1279,6 +1344,23 @@ textarea {
   color: #757575;
 }
 
+.farm-reminder-delete {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 9px;
+  background: #fff1f2;
+  color: #e53935;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.farm-reminder-delete:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .farm-reminder-meta {
   display: flex;
   align-items: center;
@@ -1333,8 +1415,12 @@ textarea {
 }
 
 .farm-livestock-icon {
-  font-size: 32px;
-  margin-bottom: 8px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
   line-height: 1;
 }
 
@@ -1349,6 +1435,37 @@ textarea {
   font-size: 13px;
   color: var(--text-grey);
   line-height: 1.5;
+}
+
+.farm-livestock-actions {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.farm-action-mini {
+  border: 1px solid #d6e8d8;
+  border-radius: 10px;
+  background: #f8fbf8;
+  color: #1b5e20;
+  padding: 8px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.farm-action-mini:hover:not(:disabled) {
+  background: #e8f5e9;
+}
+
+.farm-action-mini:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Advisory checklist */
@@ -1382,12 +1499,13 @@ textarea {
 
 /* ── Add Crop Modal ──────────────────────────────────────────── */
 .farm-modal-backdrop {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.45);
   z-index: 200;
   display: flex;
   align-items: flex-end;
+  justify-content: center;
   padding: 0;
   animation: farm-backdrop-in 0.2s ease;
 }
@@ -1399,7 +1517,7 @@ textarea {
 
 .farm-modal {
   width: 100%;
-  max-height: 90dvh;
+  max-height: 100%;
   background: #ffffff;
   border-radius: 28px 28px 0 0;
   overflow-y: auto;
@@ -1581,6 +1699,17 @@ textarea {
 .farm-submit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Desktop web: keep modal visually inside the app frame instead of viewport popup */
+@media (min-width: 900px) {
+  .farm-modal-backdrop {
+    background: rgba(0, 0, 0, 0.36);
+  }
+
+  .farm-modal {
+    border-radius: 24px 24px 0 0;
+  }
 }
 
 /* ── Responsive tweaks ───────────────────────────────────────── */

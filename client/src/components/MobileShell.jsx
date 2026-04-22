@@ -9,17 +9,17 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useSessionStore } from "../app/store";
 
 const navItems = [
-  { label: "Home",    path: "/home",    icon: MdHomeFilled },
-  { label: "Diagnose",path: "/diagnose",icon: MdSearch },
-  { label: "My Farm", path: "/farm",    icon: MdEco },
-  { label: "Market",  path: "/market",  icon: MdShowChart },
+  { label: "Home", path: "/home", icon: MdHomeFilled },
+  { label: "Diagnose", path: "/diagnose", icon: MdSearch },
+  { label: "My Farm", path: "/farm", icon: MdEco },
+  { label: "Market", path: "/market", icon: MdShowChart },
   { label: "Profile", path: "/profile", icon: MdPerson },
 ];
 
 export default function MobileShell() {
   const location = useLocation();
-  const navigate  = useNavigate();
-  const user      = useSessionStore((s) => s.user);
+  const navigate = useNavigate();
+  const user = useSessionStore((s) => s.user);
 
   return (
     <div className="mobile-frame">
@@ -29,7 +29,7 @@ export default function MobileShell() {
 
       <nav className="bottom-nav" aria-label="Main navigation">
         {navItems.map((item) => {
-          const Icon   = item.icon;
+          const Icon = item.icon;
           const active =
             location.pathname === item.path ||
             location.pathname.startsWith(`${item.path}/`);

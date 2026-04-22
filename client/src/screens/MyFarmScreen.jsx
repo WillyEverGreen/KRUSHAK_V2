@@ -2,56 +2,131 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   MdAdd,
-  MdClose,
-  MdGrass,
-  MdWaterDrop,
-  MdNotificationsActive,
-  MdPets,
-  MdWarningAmber,
-  MdCheckCircle,
+  MdAccessTime,
   MdCalendarToday,
-  MdStraighten,
-  MdNotes,
+  MdCheckCircle,
+  MdClose,
   MdDelete,
   MdEdit,
-  MdArrowForward,
+  MdGrass,
+  MdHealthAndSafety,
+  MdLogin,
+  MdNotificationsActive,
+  MdNotes,
+  MdWaterDrop,
+  MdPets,
+  MdPlaylistAdd,
+  MdRestaurant,
+  MdStraighten,
+  MdWarningAmber,
   MdBolt,
 } from "react-icons/md";
-import { fetchFarmData, fetchCrops, addCrop, toggleReminder } from "../services/api";
+import { useNavigate } from "react-router-dom";
+import { useSessionStore } from "../app/store";
+import {
+  addCrop,
+  addLivestock,
+  addLivestockFeedReminder,
+  addReminder,
+  deleteLivestock,
+  deleteReminder,
+  fetchCrops,
+  fetchFarmData,
+  toggleReminder,
+  updateLivestock,
+} from "../services/api";
 import DataState from "../components/DataState";
 import FreshnessTag from "../components/FreshnessTag";
 
 /* ─── Helpers ──────────────────────────────────────────────── */
 
 const STAGE_META = {
-  Sowing:      { emoji: "🌱", color: "#a5d6a7", bg: "#e8f5e9" },
+  Sowing: { emoji: "🌱", color: "#a5d6a7", bg: "#e8f5e9" },
   Germination: { emoji: "🌿", color: "#66bb6a", bg: "#c8e6c9" },
-  Vegetative:  { emoji: "🍃", color: "#43a047", bg: "#dcedc8" },
-  Flowering:   { emoji: "🌸", color: "#ec407a", bg: "#fce4ec" },
-  Fruiting:    { emoji: "🍎", color: "#f57c00", bg: "#fff3e0" },
-  Harvest:     { emoji: "🌾", color: "#f9a825", bg: "#fff8e1" },
+  Vegetative: { emoji: "🍃", color: "#43a047", bg: "#dcedc8" },
+  Flowering: { emoji: "🌸", color: "#ec407a", bg: "#fce4ec" },
+  Fruiting: { emoji: "🍎", color: "#f57c00", bg: "#fff3e0" },
+  Harvest: { emoji: "🌾", color: "#f9a825", bg: "#fff8e1" },
+};
+
+const LIVESTOCK_META = {
+  Cow: { emoji: "🐄", tint: "#e8f5e9" },
+  Buffalo: { emoji: "🐃", tint: "#e8f5e9" },
+  Goat: { emoji: "🐐", tint: "#eef8ff" },
+  Sheep: { emoji: "🐑", tint: "#eef8ff" },
+  Chicken: { emoji: "🐓", tint: "#fff8e1" },
+  Duck: { emoji: "🦆", tint: "#fff8e1" },
+  Pig: { emoji: "🐖", tint: "#fdf2f8" },
+  Horse: { emoji: "🐎", tint: "#f5f5f5" },
+  Rabbit: { emoji: "🐇", tint: "#f5f5f5" },
+};
+
+const QUICK_REMINDER_FALLBACK = [
+  {
+    id: "irrigation-evening",
+    title: "Irrigation Check",
+    task: "Check irrigation channels and moisture",
+    dueAtLabel: "Today 6:00 PM",
+    category: "irrigation",
+    priority: "medium",
+  },
+  {
+    id: "spray-morning",
+    title: "Pest Spray",
+    task: "Inspect pest level and prepare spray",
+    dueAtLabel: "Tomorrow 6:00 AM",
+    category: "spray",
+    priority: "high",
+  },
+  {
+    id: "feed-livestock",
+    title: "Feed Livestock",
+    task: "Feed livestock and refill water trough",
+    dueAtLabel: "Today 7:00 PM",
+    category: "livestock-feed",
+    priority: "high",
+  },
+];
+
+const STAGES = [
+  "Sowing",
+  "Germination",
+  "Vegetative",
+  "Flowering",
+  "Fruiting",
+  "Harvest",
+];
+
+const LIVESTOCK_TYPES = Object.keys(LIVESTOCK_META);
+
+function priorityColor(priority) {
+  if (priority === "high") return "#e53935";
+  if (priority === "low") return "#2e7d32";
+  return "#f57c00";
 };
 
 function healthColor(h) {
   if (h >= 0.75) return "#43a047";
-  if (h >= 0.5)  return "#f57c00";
+  if (h >= 0.5) return "#f57c00";
   return "#e53935";
 }
 
 function healthLabel(h) {
   if (h >= 0.75) return "Healthy";
-  if (h >= 0.5)  return "Fair";
+  if (h >= 0.5) return "Fair";
   return "Poor";
 }
-
-const LIVESTOCK_ICONS = ["🐄", "🐐", "🐑", "🐓", "🐖"];
 
 /* ─── Main Component ───────────────────────────────────────── */
 
 export default function MyFarmScreen() {
+  const navigate = useNavigate();
+  const user = useSessionStore((s) => s.user);
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState(0);
   const [showAddCrop, setShowAddCrop] = useState(false);
+  const [showAddReminder, setShowAddReminder] = useState(false);
+  const [showAddLivestock, setShowAddLivestock] = useState(false);
 
   const [coords, setCoords] = useState(null);
   useEffect(() => {
@@ -59,7 +134,7 @@ export default function MyFarmScreen() {
       navigator.geolocation.getCurrentPosition(
         (pos) => setCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
         () => setCoords(null),
-        { timeout: 8000 }
+        { timeout: 8000 },
       );
     }
   }, []);
@@ -67,13 +142,20 @@ export default function MyFarmScreen() {
   const { data: farmData, isLoading: farmLoading, error: farmError } = useQuery({
     queryKey: ["farm-data"],
     queryFn: fetchFarmData,
+    enabled: Boolean(user),
     staleTime: 3 * 60 * 1000,
   });
 
   const { data: cropData, isLoading: cropsLoading, error: cropsError } = useQuery({
     queryKey: ["crops", coords?.latitude, coords?.longitude],
     queryFn: () => fetchCrops({ lat: coords?.latitude, lon: coords?.longitude }),
+    enabled: Boolean(user),
     staleTime: 3 * 60 * 1000,
+  });
+
+  const addReminderMutation = useMutation({
+    mutationFn: addReminder,
+    onSuccess: () => queryClient.invalidateQueries(["farm-data"]),
   });
 
   const toggleMutation = useMutation({
@@ -81,27 +163,132 @@ export default function MyFarmScreen() {
     onSuccess: () => queryClient.invalidateQueries(["farm-data"]),
   });
 
-  const reminders    = farmData?.reminders || [];
+  const deleteReminderMutation = useMutation({
+    mutationFn: deleteReminder,
+    onSuccess: () => queryClient.invalidateQueries(["farm-data"]),
+  });
+
+  const addLivestockMutation = useMutation({
+    mutationFn: addLivestock,
+    onSuccess: () => queryClient.invalidateQueries(["farm-data"]),
+  });
+
+  const updateLivestockMutation = useMutation({
+    mutationFn: ({ id, payload }) => updateLivestock(id, payload),
+    onSuccess: () => queryClient.invalidateQueries(["farm-data"]),
+  });
+
+  const deleteLivestockMutation = useMutation({
+    mutationFn: deleteLivestock,
+    onSuccess: () => queryClient.invalidateQueries(["farm-data"]),
+  });
+
+  const addFeedReminderMutation = useMutation({
+    mutationFn: ({ id, dueAtLabel }) =>
+      addLivestockFeedReminder(id, { dueAtLabel }),
+    onSuccess: () => queryClient.invalidateQueries(["farm-data"]),
+  });
+
+  const reminders = farmData?.reminders || [];
+  const livestock = farmData?.livestock || [];
   const livestockTips = farmData?.livestockTips || [];
+  const quickReminderTemplates =
+    farmData?.quickReminderTemplates?.length > 0
+      ? farmData.quickReminderTemplates
+      : QUICK_REMINDER_FALLBACK;
   const latestDiagnosis = farmData?.latestDiagnosis || "No recent diagnosis yet";
-  const crops        = cropData?.crops || [];
+  const crops = cropData?.crops || [];
   const weatherSummary = farmData?.weatherSummary;
 
   const pendingReminders = useMemo(() => reminders.filter((r) => !r.done).length, [reminders]);
-  const avgHealth = useMemo(() =>
-    crops.length ? crops.reduce((s, c) => s + c.health, 0) / crops.length : null,
-    [crops]
+  const avgHealth = useMemo(
+    () =>
+      crops.length ? crops.reduce((s, c) => s + c.health, 0) / crops.length : null,
+    [crops],
+  );
+
+  const livestockAvgHealth = useMemo(() => {
+    if (!livestock.length) return null;
+    const weighted = livestock.reduce(
+      (acc, item) => {
+        const count = Number(item.count || 0);
+        return {
+          score: acc.score + (item.healthScore || 0.8) * count,
+          count: acc.count + count,
+        };
+      },
+      { score: 0, count: 0 },
+    );
+
+    if (!weighted.count) return null;
+    return weighted.score / weighted.count;
+  }, [livestock]);
+
+  const livestockTotal = useMemo(
+    () => livestock.reduce((sum, item) => sum + Number(item.count || 0), 0),
+    [livestock],
   );
 
   const TABS = [
-    { label: "All Crops",  icon: MdGrass,               badge: crops.length || null },
-    { label: "Reminders",  icon: MdNotificationsActive,  badge: pendingReminders || null },
-    { label: "Livestock",  icon: MdPets,                 badge: null },
+    { label: "All Crops", icon: MdGrass, badge: crops.length || null },
+    { label: "Reminders", icon: MdNotificationsActive, badge: pendingReminders || null },
+    { label: "Livestock", icon: MdPets, badge: livestock.length || null },
   ];
+
+  if (!user) {
+    return (
+      <div className="farm-screen">
+        <div className="farm-header">
+          <div className="farm-header-left">
+            <div className="farm-header-icon">🌾</div>
+            <div>
+              <div className="farm-header-title">My Farm</div>
+              <div className="farm-header-sub">Sign in to manage crops, livestock, and reminders</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card-elevated mt-12" style={{ borderRadius: 18 }}>
+          <div className="text-lg" style={{ fontWeight: 800, color: "#1b5e20" }}>
+            Login Required
+          </div>
+          <div className="text-sm muted mt-8" style={{ lineHeight: 1.45 }}>
+            My Farm is fully personalized. Login or register to add crops, schedule reminders,
+            and track livestock health.
+          </div>
+          <button
+            className="btn btn-primary mt-16"
+            style={{ width: "100%", display: "flex", justifyContent: "center", gap: 8 }}
+            onClick={() => navigate("/login")}
+          >
+            <MdLogin size={18} />
+            Login / Register
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function createQuickReminder(template) {
+    addReminderMutation.mutate({
+      task: template.task,
+      dueAtLabel: template.dueAtLabel,
+      category: template.category || "general",
+      priority: template.priority || "medium",
+    });
+  }
+
+  function nudgeLivestockHealth(item, delta) {
+    const current = Number(item.healthScore || 0.8);
+    const next = Math.max(0.2, Math.min(1, current + delta));
+    updateLivestockMutation.mutate({
+      id: item._id,
+      payload: { healthScore: Number(next.toFixed(2)) },
+    });
+  }
 
   return (
     <div className="farm-screen">
-
       {/* ── Header ──────────────────────────────────────────── */}
       <div className="farm-header">
         <div className="farm-header-left">
@@ -118,15 +305,6 @@ export default function MyFarmScreen() {
             </div>
           </div>
         </div>
-
-        <button
-          className="farm-add-btn"
-          onClick={() => setShowAddCrop(true)}
-          id="farm-add-crop-btn"
-        >
-          <MdAdd size={18} />
-          <span>Add Crop</span>
-        </button>
       </div>
 
       {/* ── Diagnosis banner ─────────────────────────────────── */}
@@ -161,24 +339,46 @@ export default function MyFarmScreen() {
         })}
       </div>
 
+      {/* ── Context-aware Add Button ─────────────────────────── */}
+      {activeTab === 0 && (
+        <button
+          className="farm-action-btn farm-action-btn--solo"
+          onClick={() => setShowAddCrop(true)}
+          id="farm-add-crop-btn"
+        >
+          <MdAdd size={16} />
+          <span>Add Crop</span>
+        </button>
+      )}
+      {activeTab === 1 && (
+        <button
+          className="farm-action-btn farm-action-btn--solo"
+          onClick={() => setShowAddReminder(true)}
+          id="farm-add-reminder-btn"
+        >
+          <MdNotificationsActive size={16} />
+          <span>Add Reminder</span>
+        </button>
+      )}
+      {activeTab === 2 && (
+        <button
+          className="farm-action-btn farm-action-btn--solo"
+          onClick={() => setShowAddLivestock(true)}
+          id="farm-add-livestock-btn"
+        >
+          <MdPets size={16} />
+          <span>Add Livestock</span>
+        </button>
+      )}
+
       {/* ── Content panels ───────────────────────────────────── */}
       <div className="farm-panel-area">
-
         {/* ── Crops Tab ─────────────────────────── */}
         {activeTab === 0 && (
           <>
             {cropData?.generatedAt && (
               <div className="farm-freshness-row">
                 <FreshnessTag generatedAt={cropData.generatedAt} />
-              </div>
-            )}
-            {(farmData?.isDemo || cropData?.isDemo) && (
-              <div className="farm-demo-banner">
-                <span>🔒</span>
-                <div>
-                  <div className="farm-demo-title">Preview Mode</div>
-                  <div className="farm-demo-sub">Login to save and track your real crops. Showing demo data.</div>
-                </div>
               </div>
             )}
             <DataState
@@ -249,6 +449,12 @@ export default function MyFarmScreen() {
                             <span>{crop.fieldSizeAcres} acres</span>
                           </div>
                         )}
+                        {crop.notes && (
+                          <div className="farm-detail-row">
+                            <MdNotes size={13} color="#757575" />
+                            <span>{crop.notes}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -265,16 +471,25 @@ export default function MyFarmScreen() {
             error={farmError}
             empty={reminders.length === 0}
             emptyMessage="No reminders scheduled. Add one to stay on top of your farm tasks."
+            emptyAction={{
+              label: "Add Reminder",
+              onClick: () => setShowAddReminder(true),
+            }}
           >
-            {farmData?.isDemo && (
-              <div className="farm-demo-banner">
-                <span>🔒</span>
-                <div>
-                  <div className="farm-demo-title">Demo Reminders</div>
-                  <div className="farm-demo-sub">Login to create and manage your own reminders.</div>
-                </div>
-              </div>
-            )}
+            <div className="farm-quick-strip">
+              {quickReminderTemplates.map((template) => (
+                <button
+                  key={template.id}
+                  className="farm-quick-btn"
+                  disabled={addReminderMutation.isPending}
+                  onClick={() => createQuickReminder(template)}
+                >
+                  <MdPlaylistAdd size={14} />
+                  <span>{template.title}</span>
+                </button>
+              ))}
+            </div>
+
             <div className="farm-reminders-list">
               {reminders.map((item, idx) => (
                 <div
@@ -290,29 +505,51 @@ export default function MyFarmScreen() {
 
                   <div className="farm-reminder-body">
                     <div className="farm-reminder-top">
-                      <div className="farm-reminder-task" style={{ textDecoration: item.done ? "line-through" : "none" }}>
+                      <div
+                        className="farm-reminder-task"
+                        style={{ textDecoration: item.done ? "line-through" : "none" }}
+                      >
                         {item.task}
                       </div>
-                      <button
-                        className={`farm-reminder-toggle ${item.done ? "undo" : "done-btn"}`}
-                        disabled={toggleMutation.isPending}
-                        onClick={() => {
-                          if (String(item._id).startsWith("demo")) {
-                            window.alert("Login to manage your real reminders.");
-                            return;
-                          }
-                          toggleMutation.mutate(item._id);
-                        }}
-                      >
-                        {item.done ? "Undo" : "Done"}
-                      </button>
+                      <div className="row" style={{ gap: 6 }}>
+                        <button
+                          className={`farm-reminder-toggle ${item.done ? "undo" : "done-btn"}`}
+                          disabled={toggleMutation.isPending}
+                          onClick={() => toggleMutation.mutate(item._id)}
+                        >
+                          {item.done ? "Undo" : "Done"}
+                        </button>
+                        <button
+                          className="farm-reminder-delete"
+                          disabled={deleteReminderMutation.isPending}
+                          onClick={() => deleteReminderMutation.mutate(item._id)}
+                          aria-label="Delete reminder"
+                        >
+                          <MdDelete size={15} />
+                        </button>
+                      </div>
                     </div>
 
                     <div className="farm-reminder-meta">
                       <MdCalendarToday size={11} />
                       <span>{item.dueAtLabel}</span>
+                      <span
+                        style={{
+                          marginLeft: 4,
+                          color: priorityColor(item.priority),
+                          fontWeight: 700,
+                        }}
+                      >
+                        {(item.priority || "medium").toUpperCase()}
+                      </span>
                       {item.done && <span className="farm-reminder-completed-badge">✓ Completed</span>}
                     </div>
+
+                    {(item.category || "").trim() && (
+                      <div className="text-xs muted mt-8" style={{ textTransform: "capitalize" }}>
+                        Category: {String(item.category).replace(/-/g, " ")}
+                      </div>
+                    )}
 
                     {item.skipWarning && !item.done && (
                       <div className="farm-skip-warning">
@@ -332,45 +569,170 @@ export default function MyFarmScreen() {
           <DataState
             loading={farmLoading}
             error={farmError}
-            empty={livestockTips.length === 0}
-            emptyMessage="No livestock tips available right now."
+            empty={livestock.length === 0}
+            emptyMessage="No livestock added yet. Add your first entry to track health and feeding reminders."
+            emptyAction={{
+              label: "Add Livestock",
+              onClick: () => setShowAddLivestock(true),
+            }}
           >
-            <div className="farm-livestock-grid">
-              {livestockTips.map((item, idx) => (
-                <div className="farm-livestock-card" key={item.title}>
-                  <div className="farm-livestock-icon">{LIVESTOCK_ICONS[idx % LIVESTOCK_ICONS.length]}</div>
-                  <div className="farm-livestock-title">{item.title}</div>
-                  <div className="farm-livestock-tip">{item.tip}</div>
+            <div className="card" style={{ borderRadius: 16 }}>
+              <div className="row-between">
+                <div className="text-sm" style={{ fontWeight: 800, color: "#1b5e20" }}>
+                  Herd Overview
                 </div>
-              ))}
-
-              {/* Static general livestock advisory */}
-              <div className="farm-livestock-advisory">
-                <div className="farm-advisory-heading">📋 Daily Livestock Checklist</div>
-                {[
-                  "Check water troughs — clean & fill",
-                  "Inspect for injuries or illness",
-                  "Provide mineral supplements",
-                  "Record milk yield / weight gain",
-                  "Ensure proper shelter & ventilation",
-                ].map((tip) => (
-                  <div key={tip} className="farm-advisory-item">
-                    <MdCheckCircle size={14} color="#4caf50" />
-                    <span>{tip}</span>
-                  </div>
-                ))}
+                <div className="chip">{livestockTotal} animals</div>
               </div>
+              <div className="text-xs muted mt-8">
+                Average health: {livestockAvgHealth !== null ? `${Math.round(livestockAvgHealth * 100)}%` : "N/A"}
+              </div>
+            </div>
+
+            <div className="farm-livestock-grid">
+              {livestock.map((item) => {
+                const meta = LIVESTOCK_META[item.type] || { emoji: "🐾", tint: "#f5f5f5" };
+                const health = Number(item.healthScore || 0.8);
+                const healthPct = Math.round(health * 100);
+
+                return (
+                  <div className="farm-livestock-card" key={item._id}>
+                    <div className="row-between" style={{ alignItems: "flex-start" }}>
+                      <div className="row" style={{ alignItems: "center", gap: 10 }}>
+                        <div className="farm-livestock-icon" style={{ background: meta.tint }}>
+                          {meta.emoji}
+                        </div>
+                        <div>
+                          <div className="farm-livestock-title">
+                            {item.name || item.type}
+                          </div>
+                          <div className="text-xs muted">{item.type} · {item.count} animals</div>
+                        </div>
+                      </div>
+
+                      <button
+                        className="farm-reminder-delete"
+                        disabled={deleteLivestockMutation.isPending}
+                        onClick={() => deleteLivestockMutation.mutate(item._id)}
+                        aria-label="Delete livestock"
+                      >
+                        <MdDelete size={15} />
+                      </button>
+                    </div>
+
+                    <div className="farm-health-row mt-8">
+                      <div className="farm-health-bar-wrap">
+                        <div
+                          className="farm-health-bar-fill"
+                          style={{ width: `${healthPct}%`, background: healthColor(health) }}
+                        />
+                      </div>
+                      <div className="farm-health-pct" style={{ color: healthColor(health) }}>
+                        {healthPct}%
+                      </div>
+                      <span className="farm-health-label" style={{ color: healthColor(health) }}>
+                        {healthLabel(health)}
+                      </span>
+                    </div>
+
+                    <div className="farm-crop-details">
+                      {item.lastFedAtLabel && (
+                        <div className="farm-detail-row">
+                          <MdRestaurant size={13} color="#2e7d32" />
+                          <span>Last fed: {item.lastFedAtLabel}</span>
+                        </div>
+                      )}
+                      <div className="farm-detail-row">
+                        <MdAccessTime size={13} color="#2e7d32" />
+                        <span>Feed every {item.feedIntervalHours || 12} hours</span>
+                      </div>
+                      {item.notes && (
+                        <div className="farm-detail-row">
+                          <MdNotes size={13} color="#757575" />
+                          <span>{item.notes}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="farm-livestock-actions">
+                      <button
+                        className="farm-action-mini"
+                        disabled={addFeedReminderMutation.isPending}
+                        onClick={() =>
+                          addFeedReminderMutation.mutate({
+                            id: item._id,
+                            dueAtLabel: "Today 7:00 PM",
+                          })
+                        }
+                      >
+                        <MdNotificationsActive size={14} />
+                        Feed Reminder
+                      </button>
+                      <button
+                        className="farm-action-mini"
+                        disabled={updateLivestockMutation.isPending}
+                        onClick={() => nudgeLivestockHealth(item, -0.1)}
+                      >
+                        -10% Health
+                      </button>
+                      <button
+                        className="farm-action-mini"
+                        disabled={updateLivestockMutation.isPending}
+                        onClick={() => nudgeLivestockHealth(item, 0.1)}
+                      >
+                        +10% Health
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {livestockTips.length > 0 && (
+                <div className="farm-livestock-advisory">
+                  <div className="farm-advisory-heading">📋 Daily Livestock Checklist</div>
+                  {livestockTips.map((item) => (
+                    <div key={item.title} className="farm-advisory-item">
+                      <MdCheckCircle size={14} color="#4caf50" />
+                      <span>
+                        <strong>{item.title}:</strong> {item.tip}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </DataState>
         )}
-
       </div>
 
       {/* ── Add Crop Modal ────────────────────────────────────── */}
       {showAddCrop && (
         <AddCropModal
           onClose={() => setShowAddCrop(false)}
-          onAdd={() => queryClient.invalidateQueries(["crops"])}
+          onAdd={() => {
+            queryClient.invalidateQueries(["crops"]);
+            queryClient.invalidateQueries(["farm-data"]);
+          }}
+        />
+      )}
+
+      {showAddReminder && (
+        <AddReminderModal
+          onClose={() => setShowAddReminder(false)}
+          onAdd={() => queryClient.invalidateQueries(["farm-data"])}
+          quickTemplates={quickReminderTemplates}
+        />
+      )}
+
+      {showAddLivestock && (
+        <AddLivestockModal
+          onClose={() => setShowAddLivestock(false)}
+          onAdd={(payload) => {
+            addLivestockMutation.mutate(payload, {
+              onSuccess: () => {
+                setShowAddLivestock(false);
+              },
+            });
+          }}
         />
       )}
     </div>
@@ -379,16 +741,14 @@ export default function MyFarmScreen() {
 
 /* ─── Add Crop Modal ───────────────────────────────────────── */
 
-const STAGES = ["Sowing", "Germination", "Vegetative", "Flowering", "Fruiting", "Harvest"];
-
 function AddCropModal({ onClose, onAdd }) {
-  const [name, setName]               = useState("");
-  const [variety, setVariety]         = useState("");
-  const [stage, setStage]             = useState("Sowing");
-  const [sowingDate, setSowingDate]   = useState("");
-  const [fieldSize, setFieldSize]     = useState("1");
-  const [notes, setNotes]             = useState("");
-  const [loading, setLoading]         = useState(false);
+  const [name, setName] = useState("");
+  const [variety, setVariety] = useState("");
+  const [stage, setStage] = useState("Sowing");
+  const [sowingDate, setSowingDate] = useState("");
+  const [fieldSize, setFieldSize] = useState("1");
+  const [notes, setNotes] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -405,10 +765,12 @@ function AddCropModal({ onClose, onAdd }) {
       });
       onAdd();
       onClose();
-    } catch (err) {
-      const msg = err?.response?.data?.message || "Could not add crop. Please login first.";
+    } catch (error) {
+      const msg =
+        error?.response?.data?.message ||
+        "Could not add crop. Please login first.";
       window.alert(msg);
-      console.error(err);
+      console.error(error);
       setLoading(false);
     }
   }
@@ -416,7 +778,10 @@ function AddCropModal({ onClose, onAdd }) {
   const meta = STAGE_META[stage] || STAGE_META.Sowing;
 
   return (
-    <div className="farm-modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="farm-modal-backdrop"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="farm-modal">
         {/* Modal header */}
         <div className="farm-modal-header">
@@ -473,7 +838,11 @@ function AddCropModal({ onClose, onAdd }) {
                     key={s}
                     type="button"
                     className={`farm-stage-btn ${stage === s ? "active" : ""}`}
-                    style={stage === s ? { background: m.bg, borderColor: m.color, color: m.color } : {}}
+                    style={
+                      stage === s
+                        ? { background: m.bg, borderColor: m.color, color: m.color }
+                        : {}
+                    }
                     onClick={() => setStage(s)}
                   >
                     <span>{m.emoji}</span>
@@ -538,6 +907,288 @@ function AddCropModal({ onClose, onAdd }) {
             id="crop-submit-btn"
           >
             {loading ? "Adding crop…" : `${meta.emoji} Add ${name || "Crop"}`}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function AddReminderModal({ onClose, onAdd, quickTemplates = [] }) {
+  const [task, setTask] = useState("");
+  const [dueAtLabel, setDueAtLabel] = useState("Today 6:00 PM");
+  const [category, setCategory] = useState("general");
+  const [priority, setPriority] = useState("medium");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!task.trim()) return;
+    setLoading(true);
+    try {
+      await addReminder({
+        task: task.trim(),
+        dueAtLabel: dueAtLabel.trim() || "Today 6:00 PM",
+        category,
+        priority,
+      });
+      onAdd();
+      onClose();
+    } catch (error) {
+      const msg = error?.response?.data?.message || "Could not create reminder.";
+      window.alert(msg);
+      setLoading(false);
+    }
+  }
+
+  function applyTemplate(template) {
+    setTask(template.task || "");
+    setDueAtLabel(template.dueAtLabel || "Today 6:00 PM");
+    setCategory(template.category || "general");
+    setPriority(template.priority || "medium");
+  }
+
+  return (
+    <div className="farm-modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="farm-modal">
+        <div className="farm-modal-header">
+          <div className="farm-modal-title">
+            <span>⏰</span>
+            <span>Add Reminder</span>
+          </div>
+          <button className="farm-modal-close" onClick={onClose}>
+            <MdClose size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="farm-modal-form">
+          {quickTemplates.length > 0 && (
+            <div className="farm-field">
+              <label className="farm-label">⚡ Quick Templates</label>
+              <div className="farm-quick-strip">
+                {quickTemplates.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    className="farm-quick-btn"
+                    onClick={() => applyTemplate(template)}
+                  >
+                    <MdPlaylistAdd size={14} />
+                    <span>{template.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="farm-field">
+            <label className="farm-label">
+              <MdEdit size={14} /> Task *
+            </label>
+            <input
+              className="farm-input"
+              value={task}
+              onChange={(e) => setTask(e.target.value)}
+              placeholder="e.g. Spray pest control in tomato plot"
+              required
+            />
+          </div>
+
+          <div className="farm-two-col">
+            <div className="farm-field">
+              <label className="farm-label">
+                <MdCalendarToday size={14} /> Due Label
+              </label>
+              <input
+                className="farm-input"
+                value={dueAtLabel}
+                onChange={(e) => setDueAtLabel(e.target.value)}
+                placeholder="Today 6:00 PM"
+              />
+            </div>
+
+            <div className="farm-field">
+              <label className="farm-label">
+                <MdWarningAmber size={14} /> Priority
+              </label>
+              <select
+                className="farm-input"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="farm-field">
+            <label className="farm-label">
+              <MdNotificationsActive size={14} /> Category
+            </label>
+            <select
+              className="farm-input"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              <option value="general">General</option>
+              <option value="crop">Crop</option>
+              <option value="irrigation">Irrigation</option>
+              <option value="spray">Spray</option>
+              <option value="harvest">Harvest</option>
+              <option value="livestock-feed">Livestock Feed</option>
+              <option value="livestock-health">Livestock Health</option>
+            </select>
+          </div>
+
+          <button type="submit" className="farm-submit-btn" disabled={loading || !task.trim()}>
+            {loading ? "Saving reminder…" : "⏰ Save Reminder"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function AddLivestockModal({ onClose, onAdd }) {
+  const [type, setType] = useState("Cow");
+  const [name, setName] = useState("");
+  const [count, setCount] = useState("1");
+  const [healthScore, setHealthScore] = useState("0.8");
+  const [feedIntervalHours, setFeedIntervalHours] = useState("12");
+  const [lastFedAtLabel, setLastFedAtLabel] = useState("Today 7:00 AM");
+  const [notes, setNotes] = useState("");
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    onAdd({
+      type,
+      name: name.trim(),
+      count: Math.max(1, Number(count || 1)),
+      healthScore: Number(healthScore || 0.8),
+      feedIntervalHours: Math.max(1, Number(feedIntervalHours || 12)),
+      lastFedAtLabel: lastFedAtLabel.trim(),
+      notes: notes.trim(),
+    });
+  }
+
+  const typeMeta = LIVESTOCK_META[type] || { emoji: "🐾" };
+
+  return (
+    <div className="farm-modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="farm-modal">
+        <div className="farm-modal-header">
+          <div className="farm-modal-title">
+            <span>{typeMeta.emoji}</span>
+            <span>Add Livestock</span>
+          </div>
+          <button className="farm-modal-close" onClick={onClose}>
+            <MdClose size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="farm-modal-form">
+          <div className="farm-two-col">
+            <div className="farm-field">
+              <label className="farm-label">
+                <MdPets size={14} /> Type
+              </label>
+              <select className="farm-input" value={type} onChange={(e) => setType(e.target.value)}>
+                {LIVESTOCK_TYPES.map((item) => (
+                  <option key={item} value={item}>
+                    {LIVESTOCK_META[item].emoji} {item}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="farm-field">
+              <label className="farm-label">
+                <MdEdit size={14} /> Nickname (optional)
+              </label>
+              <input
+                className="farm-input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Dairy Group A"
+              />
+            </div>
+          </div>
+
+          <div className="farm-two-col">
+            <div className="farm-field">
+              <label className="farm-label">
+                <MdAdd size={14} /> Count
+              </label>
+              <input
+                type="number"
+                min="1"
+                className="farm-input"
+                value={count}
+                onChange={(e) => setCount(e.target.value)}
+              />
+            </div>
+
+            <div className="farm-field">
+              <label className="farm-label">
+                <MdHealthAndSafety size={14} /> Health
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="1"
+                step="0.05"
+                className="farm-input"
+                value={healthScore}
+                onChange={(e) => setHealthScore(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="farm-two-col">
+            <div className="farm-field">
+              <label className="farm-label">
+                <MdRestaurant size={14} /> Feed Interval (hours)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="48"
+                className="farm-input"
+                value={feedIntervalHours}
+                onChange={(e) => setFeedIntervalHours(e.target.value)}
+              />
+            </div>
+
+            <div className="farm-field">
+              <label className="farm-label">
+                <MdCalendarToday size={14} /> Last Fed Label
+              </label>
+              <input
+                className="farm-input"
+                value={lastFedAtLabel}
+                onChange={(e) => setLastFedAtLabel(e.target.value)}
+                placeholder="Today 7:00 AM"
+              />
+            </div>
+          </div>
+
+          <div className="farm-field">
+            <label className="farm-label">
+              <MdNotes size={14} /> Notes (optional)
+            </label>
+            <textarea
+              className="farm-input farm-textarea"
+              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Breed, age group, special care needs…"
+            />
+          </div>
+
+          <button type="submit" className="farm-submit-btn">
+            {typeMeta.emoji} Save Livestock
           </button>
         </form>
       </div>
