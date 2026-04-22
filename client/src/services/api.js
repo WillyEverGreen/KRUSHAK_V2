@@ -98,7 +98,7 @@ export async function fetchChatSuggestions() {
   return data.suggestions || [];
 }
 
-export async function sendChatMessage(message) {
-  const { data } = await http.post("/chat/message", { message });
+export async function sendChatMessage({ message, history = [] }) {
+  const { data } = await http.post("/chat/message", { message, history });
   return data.reply;
 }

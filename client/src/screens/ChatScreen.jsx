@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { MdSend } from "react-icons/md";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { fetchChatSuggestions, sendChatMessage } from "../services/api";
 
 export default function ChatScreen() {
@@ -43,9 +45,10 @@ export default function ChatScreen() {
   function handleSend(messageText) {
     const text = messageText.trim();
     if (!text) return;
+    const history = messages.slice(-8);
     setInput("");
     setMessages((prev) => [...prev, { role: "user", text }]);
-    mutation.mutate(text);
+    mutation.mutate({ message: text, history });
   }
 
   return (
@@ -100,7 +103,37 @@ export default function ChatScreen() {
                 key={`${message.role}-${index}`}
                 className={`message ${message.role === "user" ? "user" : "bot"}`}
               >
-                {message.text}
+                {message.role === "user" ? (
+                  message.text
+                ) : (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      table: ({ node, ...props }) => (
+                        <div style={{ overflowX: "auto", margin: "12px 0", borderRadius: "8px", border: "1px solid #e0e0e0" }}>
+                          <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "14px" }} {...props} />
+                        </div>
+                      ),
+                      th: ({ node, ...props }) => (
+                        <th style={{ borderBottom: "2px solid #2E7D32", padding: "12px", textAlign: "left", backgroundColor: "#f1f8e9", color: "#1b5e20", fontWeight: 700 }} {...props} />
+                      ),
+                      td: ({ node, ...props }) => (
+                        <td style={{ borderBottom: "1px solid #e0e0e0", padding: "12px", verticalAlign: "top" }} {...props} />
+                      ),
+                      p: ({ node, ...props }) => (
+                        <p style={{ margin: "8px 0", lineHeight: "1.5" }} {...props} />
+                      ),
+                      ul: ({ node, ...props }) => (
+                        <ul style={{ paddingLeft: "20px", margin: "8px 0" }} {...props} />
+                      ),
+                      ol: ({ node, ...props }) => (
+                        <ol style={{ paddingLeft: "20px", margin: "8px 0" }} {...props} />
+                      ),
+                    }}
+                  >
+                    {message.text}
+                  </ReactMarkdown>
+                )}
               </div>
             ))}
             {mutation.isPending && (

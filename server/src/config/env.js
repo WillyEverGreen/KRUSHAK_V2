@@ -25,6 +25,8 @@ const envSchema = z.object({
   GNEWS_API_KEY: z.string().optional().default(""),
   GNEWS_COUNTRY: z.string().optional().default("in"),
   NEWSDATA_API_KEY: z.string().optional().default(""),
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default("gemini-2.0-flash"),
 });
 
 const parsed = envSchema.safeParse(process.env);

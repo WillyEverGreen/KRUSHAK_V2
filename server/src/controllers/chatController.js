@@ -1,7 +1,17 @@
 import { z } from "zod";
+import { env } from "../config/env.js";
 
 const promptSchema = z.object({
   message: z.string().min(2),
+  history: z
+    .array(
+      z.object({
+        role: z.enum(["user", "bot"]),
+        text: z.string().min(1),
+      }),
+    )
+    .optional()
+    .default([]),
 });
 
 const suggestions = [
@@ -37,11 +47,151 @@ export async function getChatSuggestions(_req, res) {
   return res.status(200).json({ suggestions });
 }
 
+async function getGeminiReply(message, history = []) {
+  const model = env.GEMINI_MODEL;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
+
+  const contents = history
+    .filter((item) => item && item.text)
+    .slice(-8)
+    .map((item) => ({
+      role: item.role === "bot" ? "model" : "user",
+      parts: [{ text: item.text }],
+    }));
+
+  contents.push({ role: "user", parts: [{ text: message }] });
+
+  const body = {
+    contents,
+    generationConfig: {
+      temperature: 0.6,
+      topP: 0.9,
+      maxOutputTokens: 400,
+    },
+    systemInstruction: {
+      parts: [
+        {
+          text: "You are an agricultural assistant for Indian farmers. Give practical, concise steps with safe recommendations. If uncertain, advise consulting local agronomists.",
+        },
+      ],
+    },
+  };
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const data = await resp.json().catch(() => ({}));
+
+  if (!resp.ok) {
+    const errText =
+      data?.error?.message || `Gemini request failed with status ${resp.status}`;
+    throw new Error(errText);
+  }
+
+  let replyText = data?.candidates?.[0]?.content?.parts
+    ?.map((part) => part?.text || "")
+    .join("\n")
+    .trim();
+
+  // Clean up <br> tags
+  if (replyText) {
+    replyText = replyText.replace(/<br\s*\/?>/gi, "\n");
+  }
+
+  if (!replyText) {
+    throw new Error("Gemini returned an empty response");
+  }
+
+  return replyText;
+}
+
+async function getPublicFallbackReply(message, history = []) {
+  const convo = history
+    .filter((item) => item && item.text)
+    .slice(-4)
+    .map((item) => `${item.role === "bot" ? "Assistant" : "Farmer"}: ${item.text}`)
+    .join("\n");
+
+  const prompt = [
+    "You are an agricultural assistant for Indian farmers.",
+    "Answer in short practical steps.",
+    "Keep safety first and avoid harmful advice.",
+    convo ? `Conversation so far:\n${convo}` : "",
+    `Farmer question: ${message}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}`;
+  const resp = await fetch(url, { method: "GET" });
+  const text = await resp.text();
+
+  if (!resp.ok) {
+    throw new Error(`Public LLM fallback failed with status ${resp.status}`);
+  }
+
+  let replyText = String(text || "").trim();
+  
+  // Clean up <br> tags
+  replyText = replyText.replace(/<br\s*\/?>/gi, "\n");
+  
+  // Strip Pollinations.AI advertisement
+  const adMarkers = [
+    "Support Pollinations.AI",
+    "🌸 Ad 🌸",
+    "Powered by Pollinations.AI"
+  ];
+  for (const marker of adMarkers) {
+    const idx = replyText.indexOf(marker);
+    if (idx !== -1) {
+      // Find the start of the line or paragraph where the ad begins
+      replyText = replyText.substring(0, idx).trim();
+    }
+  }
+  
+  // Remove markdown trailing empty lines or trailing horizontal rules often put before the ad
+  replyText = replyText.replace(/(?:^|\n)-{3,}\s*$/, "").trim();
+
+  if (!replyText) {
+    throw new Error("Public LLM fallback returned empty response");
+  }
+
+  return replyText;
+}
+
 export async function sendChatMessage(req, res, next) {
   try {
     const payload = promptSchema.parse(req.body);
+    // If a Gemini API key is configured, proxy the request server-side to Gemini
+    if (env.GEMINI_API_KEY) {
+      try {
+        const reply = await getGeminiReply(payload.message, payload.history);
+        return res.status(200).json({ reply, source: "gemini" });
+      } catch (err) {
+        // Log and fall back to rule-based reply if the external call fails
+        // eslint-disable-next-line no-console
+        console.error("Gemini proxy error:", err);
+      }
+    }
+
+    // Dynamic no-key fallback when Gemini is unavailable or quota-limited
+    try {
+      const reply = await getPublicFallbackReply(
+        payload.message,
+        payload.history,
+      );
+      return res.status(200).json({ reply, source: "public-fallback" });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Public fallback error:", err);
+    }
+
+    // Default rule-based reply when no key is configured or external call failed
     const reply = getRuleBasedReply(payload.message);
-    return res.status(200).json({ reply });
+    return res.status(200).json({ reply, source: "fallback" });
   } catch (error) {
     return next(error);
   }

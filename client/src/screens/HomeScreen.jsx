@@ -15,7 +15,11 @@ import {
 } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
 import InstallBanner from "../components/InstallBanner";
-import { fetchHomeData } from "../services/api";
+import { fetchHomeData, sendChatMessage } from "../services/api";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const fallbackData = {
   greeting: "Good Morning",
@@ -38,12 +42,73 @@ function riskColor(value) {
   return "#4caf50";
 }
 
+function getWeatherEmoji(summary = "") {
+  const s = summary.toLowerCase();
+  if (s.includes("rain") || s.includes("shower") || s.includes("drizzle") || s.includes("thunder")) return "🌧️";
+  if (s.includes("snow") || s.includes("flurr")) return "❄️";
+  if (s.includes("cloud") && s.includes("part")) return "⛅";
+  if (s.includes("cloud") || s.includes("overcast")) return "☁️";
+  if (s.includes("sun") || s.includes("clear") || s.includes("hot")) return "☀️";
+  return "🌤️";
+}
+
+function formatTemperature(value) {
+  if (value === null || value === undefined) return "";
+  const s = String(value).trim();
+  if (s.includes("°")) return s; // already has degree
+  // match number with optional unit (C or F)
+  const m = s.match(/^(-?\d+(?:\.\d+)?)(?:\s*([CFcf]))?$/);
+  if (m) {
+    const num = m[1];
+    const unit = (m[2] || "C").toUpperCase();
+    return `${num}°${unit}`;
+  }
+  return s;
+}
+
+function renderTemperature(value) {
+  const s = value === null || value === undefined ? "" : String(value).trim();
+  const m = s.match(/^(-?\d+(?:\.\d+)?)(?:\s*°?\s*([CFcf]))?$/);
+  let num = s;
+  let unit = "C";
+  if (m) {
+    num = m[1];
+    unit = (m[2] || "C").toUpperCase();
+  }
+  return (
+    <span style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+      <span style={{ fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{num}</span>
+      <sup style={{ fontSize: 12, fontWeight: 700, lineHeight: 1 }}>{`°${unit}`}</sup>
+    </span>
+  );
+}
+
 export default function HomeScreen() {
   const navigate = useNavigate();
   const { data = fallbackData } = useQuery({
     queryKey: ["home-data"],
     queryFn: fetchHomeData,
   });
+
+  const [chatInput, setChatInput] = useState("");
+  const [lastReply, setLastReply] = useState(null);
+
+  const chatMutation = useMutation({
+    mutationFn: sendChatMessage,
+    onSuccess: (replyData) => {
+      setLastReply(replyData.reply || replyData);
+    },
+    onError: () => {
+      setLastReply("Sorry, I could not process your request right now. Please try again.");
+    },
+  });
+
+  const handleQuickChat = () => {
+    if (!chatInput.trim()) return;
+    setLastReply("Thinking...");
+    chatMutation.mutate({ message: chatInput, history: [] });
+    setChatInput("");
+  };
 
   const quickTools = [
     {
@@ -114,8 +179,9 @@ export default function HomeScreen() {
             </div>
           </div>
           <div className="weather-chip">
-            <div style={{ fontWeight: 700, fontSize: 22 }}>
-              {data.weather.value}
+            <div style={{ fontWeight: 700, fontSize: 22, display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 22 }}>{getWeatherEmoji(data.weather.summary)}</span>
+              {renderTemperature(data.weather.value)}
             </div>
             <div
               className="text-xs"
@@ -205,6 +271,69 @@ export default function HomeScreen() {
             </div>
           );
         })}
+      </div>
+
+      <div className="section-title mt-16">
+        <MdChatBubbleOutline />
+        <span>Quick AI Chat</span>
+      </div>
+      <div className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {lastReply && (
+          <div style={{ background: "#F1F8E9", padding: 12, borderRadius: 8, fontSize: 14, color: "#1b5e20", lineHeight: 1.4 }}>
+            <strong>AI:</strong>
+            <div style={{ marginTop: 8 }}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  table: ({ node, ...props }) => (
+                    <div style={{ overflowX: "auto", margin: "12px 0", borderRadius: "8px", border: "1px solid #c8e6c9", backgroundColor: "#fff" }}>
+                      <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "14px" }} {...props} />
+                    </div>
+                  ),
+                  th: ({ node, ...props }) => (
+                    <th style={{ borderBottom: "2px solid #a5d6a7", padding: "10px", textAlign: "left", color: "#1b5e20", fontWeight: 700 }} {...props} />
+                  ),
+                  td: ({ node, ...props }) => (
+                    <td style={{ borderBottom: "1px solid #e8f5e9", padding: "10px", verticalAlign: "top" }} {...props} />
+                  ),
+                  p: ({ node, ...props }) => (
+                    <p style={{ margin: "8px 0", lineHeight: "1.5" }} {...props} />
+                  ),
+                  ul: ({ node, ...props }) => (
+                    <ul style={{ paddingLeft: "20px", margin: "8px 0" }} {...props} />
+                  ),
+                  ol: ({ node, ...props }) => (
+                    <ol style={{ paddingLeft: "20px", margin: "8px 0" }} {...props} />
+                  ),
+                }}
+              >
+                {lastReply}
+              </ReactMarkdown>
+            </div>
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            className="search-input"
+            style={{ flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid #ccc" }}
+            placeholder="Ask KisanAI a quick question..."
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleQuickChat();
+              }
+            }}
+          />
+          <button 
+            className="btn btn-primary" 
+            onClick={handleQuickChat}
+            disabled={chatMutation.isPending || !chatInput.trim()}
+            style={{ padding: "0 16px" }}
+          >
+            {chatMutation.isPending ? "..." : "Ask"}
+          </button>
+        </div>
       </div>
 
       <div className="section-title mt-18">
