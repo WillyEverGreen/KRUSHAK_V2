@@ -241,26 +241,7 @@ export default function HomeScreen() {
         })}
       </div>
 
-      <div className="card mt-18" style={{ display: "flex", gap: 12 }}>
-        <div
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 12,
-            background: "#FFF4E5",
-            display: "grid",
-            placeItems: "center",
-          }}
-        >
-          <MdCampaign color="#f97316" size={22} />
-        </div>
-        <div>
-          <div className="text-lg" style={{ fontWeight: 700 }}>
-            Village Alert
-          </div>
-          <div className="text-md muted">{data.villageAlert}</div>
-        </div>
-      </div>
+      {/* Village Alert removed - now provided via News/Advisory pipeline with source attribution */}
     </div>
   );
 }

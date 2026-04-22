@@ -76,15 +76,7 @@ export default function DiagnoseScreen() {
         Scan Your Crop
       </button>
 
-      <div className="card mt-12" style={{ display: "flex", gap: 8 }}>
-        <MdWarningAmber color="#ef4444" size={20} style={{ marginTop: 2 }} />
-        <div className="text-md" style={{ color: "#1b5e20", lineHeight: 1.35 }}>
-          Pest Alert - Your Village
-          <br />
-          Aphid activity is high in nearby farms. Inspect mustard and wheat
-          fields today.
-        </div>
-      </div>
+      {/* Local pest alerts moved to News/Advisory module; remove static village alert */}
 
       <div className="text-xl mt-16" style={{ fontWeight: 800 }}>
         Common Diseases
