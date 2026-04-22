@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   MdCheckCircleOutline,
   MdChatBubbleOutline,
@@ -18,9 +18,7 @@ import { useNavigate } from "react-router-dom";
 import InstallBanner from "../components/InstallBanner";
 import DataState from "../components/DataState";
 import FreshnessTag from "../components/FreshnessTag";
-import { fetchHomeData, sendChatMessage } from "../services/api";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { fetchHomeData } from "../services/api";
 
 function riskColor(value) {
   if (value > 70) return "#ef4444";
@@ -77,25 +75,6 @@ export default function HomeScreen() {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const [chatInput, setChatInput] = useState("");
-  const [lastReply, setLastReply] = useState(null);
-
-  const chatMutation = useMutation({
-    mutationFn: sendChatMessage,
-    onSuccess: (replyData) => {
-      setLastReply(replyData.reply || replyData);
-    },
-    onError: () => {
-      setLastReply("Sorry, I could not process your request right now. Please try again.");
-    },
-  });
-
-  const handleQuickChat = () => {
-    if (!chatInput.trim()) return;
-    setLastReply("Thinking...");
-    chatMutation.mutate({ message: chatInput, history: [] });
-    setChatInput("");
-  };
 
   const quickTools = [
     { title: "Plant Identifier",  icon: MdEco,              color: "#D9F2DA", onTap: () => navigate("/diagnose") },
@@ -262,68 +241,6 @@ export default function HomeScreen() {
             })}
           </div>
 
-          <div className="section-title mt-16">
-            <MdChatBubbleOutline />
-            <span>Quick AI Chat</span>
-          </div>
-          <div className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {lastReply && (
-              <div style={{ background: "#F1F8E9", padding: 12, borderRadius: 8, fontSize: 14, color: "#1b5e20", lineHeight: 1.4 }}>
-                <strong>AI:</strong>
-                <div style={{ marginTop: 8 }}>
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      table: ({ node, ...props }) => (
-                        <div style={{ overflowX: "auto", margin: "12px 0", borderRadius: "8px", border: "1px solid #c8e6c9", backgroundColor: "#fff" }}>
-                          <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "14px" }} {...props} />
-                        </div>
-                      ),
-                      th: ({ node, ...props }) => (
-                        <th style={{ borderBottom: "2px solid #a5d6a7", padding: "10px", textAlign: "left", color: "#1b5e20", fontWeight: 700 }} {...props} />
-                      ),
-                      td: ({ node, ...props }) => (
-                        <td style={{ borderBottom: "1px solid #e8f5e9", padding: "10px", verticalAlign: "top" }} {...props} />
-                      ),
-                      p: ({ node, ...props }) => (
-                        <p style={{ margin: "8px 0", lineHeight: "1.5" }} {...props} />
-                      ),
-                      ul: ({ node, ...props }) => (
-                        <ul style={{ paddingLeft: "20px", margin: "8px 0" }} {...props} />
-                      ),
-                      ol: ({ node, ...props }) => (
-                        <ol style={{ paddingLeft: "20px", margin: "8px 0" }} {...props} />
-                      ),
-                    }}
-                  >
-                    {lastReply}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            )}
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                className="search-input"
-                style={{ flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid #ccc" }}
-                placeholder="Ask KisanAI a quick question..."
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleQuickChat();
-                  }
-                }}
-              />
-              <button 
-                className="btn btn-primary" 
-                onClick={handleQuickChat}
-                disabled={chatMutation.isPending || !chatInput.trim()}
-                style={{ padding: "0 16px" }}
-              >
-                {chatMutation.isPending ? "..." : "Ask"}
-              </button>
-            </div>
-          </div>
 
           <div className="section-title mt-18">
             <MdHandyman />
