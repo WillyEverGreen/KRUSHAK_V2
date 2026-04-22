@@ -9,6 +9,7 @@ import ProfileScreen from "../screens/ProfileScreen";
 import NewsScreen from "../screens/NewsScreen";
 import ChatScreen from "../screens/ChatScreen";
 import CareGuidesScreen from "../screens/CareGuidesScreen";
+import FaqScreen from "../screens/FaqScreen";
 
 export default function App() {
   return (
@@ -43,6 +44,15 @@ export default function App() {
             element={
               <SubpageLayout title="Care Guides">
                 <CareGuidesScreen />
+              </SubpageLayout>
+            }
+          />
+
+          <Route
+            path="/faq"
+            element={
+              <SubpageLayout title="Help & FAQ">
+                <FaqScreen />
               </SubpageLayout>
             }
           />

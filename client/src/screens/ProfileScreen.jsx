@@ -106,7 +106,7 @@ export default function ProfileScreen() {
         <ProfileItem
           icon={<MdHelpOutline size={20} color="#757575" />}
           title="Help and FAQ"
-          onClick={() => navigate("/chat")}
+          onClick={() => navigate("/faq")}
         />
         <ProfileItem
           icon={<MdLogout size={20} color="#ef4444" />}
