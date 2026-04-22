@@ -1,6 +1,1 @@
-{
-  "_comment": "This monorepo uses TWO separate Vercel projects for deployment.",
-  "_deploy_client": "Import repo → Root Directory: ./client → Framework: Vite",
-  "_deploy_server": "Import repo → Root Directory: ./server → Framework: Other",
-  "_env_client": "Set VITE_API_BASE_URL=https://your-server.vercel.app/api in client project"
-}
+{}
