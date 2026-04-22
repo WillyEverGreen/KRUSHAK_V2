@@ -28,8 +28,6 @@ export async function getHomeData(req, res, next) {
         pestAlert: 50,
         weatherRisk: 40,
       },
-      villageAlert:
-        "Pest activity rising in nearby farms. Inspect mustard and tomato leaves today.",
       latestDiagnosis: latest
         ? `${latest.diseaseName} (${Math.round(latest.confidence * 100)}%)`
         : "No recent diagnosis yet",
