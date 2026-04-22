@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MdRefresh, MdSearch } from "react-icons/md";
 import { fetchMarketPrices } from "../services/api";
+import DataState from "../components/DataState";
+import FreshnessTag from "../components/FreshnessTag";
 
 const states = [
   "",
@@ -41,7 +43,9 @@ export default function MarketScreen() {
   const [commodityFilter, setCommodityFilter] = useState("");
 
   const {
-    data: prices = [],
+    data,
+    isLoading,
+    error,
     isFetching,
     refetch,
   } = useQuery({
@@ -54,31 +58,33 @@ export default function MarketScreen() {
       }),
   });
 
+  const prices = data?.prices || [];
+
   return (
     <div>
       <div className="row-between">
-        <div className="text-xl" style={{ fontWeight: 800 }}>
-          Mandi Prices
+        <div>
+          <div className="text-xl" style={{ fontWeight: 800 }}>Mandi Prices</div>
+          {data?.updatedAt && (
+             <div className="mt-8 row" style={{ gap: 8, alignItems: "center" }}>
+               <FreshnessTag generatedAt={data.updatedAt} />
+               <span className="text-xs muted">Source: {data.source}</span>
+             </div>
+          )}
         </div>
         <button
           className="btn btn-subtle"
           onClick={() => refetch()}
           aria-label="Refresh"
+          disabled={isFetching}
         >
-          <MdRefresh size={18} />
+          <MdRefresh size={18} className={isFetching ? "news-spin" : ""} />
         </button>
       </div>
 
       <div className="card mt-12" style={{ padding: 12 }}>
         <div style={{ position: "relative" }}>
-          <MdSearch
-            style={{
-              position: "absolute",
-              top: 12,
-              left: 10,
-              color: "#2e7d32",
-            }}
-          />
+          <MdSearch style={{ position: "absolute", top: 12, left: 10, color: "#2e7d32" }} />
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -115,55 +121,35 @@ export default function MarketScreen() {
       </div>
 
       <div className="mt-12" style={{ display: "grid", gap: 12 }}>
-        {isFetching && (
-          <div className="text-sm muted">Fetching latest mandi prices...</div>
-        )}
-
-        {!isFetching && prices.length === 0 && (
-          <div className="card">
-            <div className="text-md muted">
-              No prices found. Try adjusting filters.
-            </div>
-          </div>
-        )}
-
-        {prices.map((price, index) => (
-          <div
-            className="card"
-            key={`${price.market}-${price.commodity}-${index}`}
-          >
-            <div className="row-between">
-              <div className="text-lg" style={{ fontWeight: 700 }}>
-                {price.commodity}
+        <DataState loading={isLoading} error={error} empty={prices.length === 0} emptyMessage="No prices found. Try adjusting filters.">
+          {prices.map((price, index) => (
+            <div className="card" key={`${price.market}-${price.commodity}-${index}`}>
+              <div className="row-between">
+                <div className="text-lg" style={{ fontWeight: 700 }}>
+                  {price.commodity}
+                </div>
+                <span className="chip">{price.arrivalDate}</span>
               </div>
-              <span className="chip">{price.arrivalDate}</span>
-            </div>
 
-            {(price.variety || price.grade) && (
+              {(price.variety || price.grade) && (
+                <div className="text-sm muted mt-8">
+                  {price.variety}
+                  {price.grade ? ` • ${price.grade}` : ""}
+                </div>
+              )}
+
               <div className="text-sm muted mt-8">
-                {price.variety}
-                {price.grade ? ` • ${price.grade}` : ""}
+                {price.market}, {price.district}, {price.state}
               </div>
-            )}
 
-            <div className="text-sm muted mt-8">
-              {price.market}, {price.district}, {price.state}
+              <div className="row mt-12" style={{ justifyContent: "space-around" }}>
+                <PriceCol label="Min" value={price.minPrice} color="#ef4444" />
+                <PriceCol label="Modal" value={price.modalPrice} color="#2e7d32" />
+                <PriceCol label="Max" value={price.maxPrice} color="#3b82f6" />
+              </div>
             </div>
-
-            <div
-              className="row mt-12"
-              style={{ justifyContent: "space-around" }}
-            >
-              <PriceCol label="Min" value={price.minPrice} color="#ef4444" />
-              <PriceCol
-                label="Modal"
-                value={price.modalPrice}
-                color="#2e7d32"
-              />
-              <PriceCol label="Max" value={price.maxPrice} color="#3b82f6" />
-            </div>
-          </div>
-        ))}
+          ))}
+        </DataState>
       </div>
     </div>
   );

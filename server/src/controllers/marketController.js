@@ -1,84 +1,92 @@
-const samplePrices = [
-  {
-    state: "Maharashtra",
-    district: "Pune",
-    market: "Pune Mandi",
-    commodity: "Tomato",
-    variety: "Hybrid",
-    grade: "A",
-    arrivalDate: "22/04/2026",
-    minPrice: "800",
-    maxPrice: "1400",
-    modalPrice: "1100",
-  },
-  {
-    state: "Maharashtra",
-    district: "Nashik",
-    market: "Nashik Mandi",
-    commodity: "Onion",
-    variety: "Red",
-    grade: "B",
-    arrivalDate: "22/04/2026",
-    minPrice: "1200",
-    maxPrice: "2200",
-    modalPrice: "1800",
-  },
-  {
-    state: "Punjab",
-    district: "Ludhiana",
-    market: "Ludhiana Market",
-    commodity: "Wheat",
-    variety: "Sharbati",
-    grade: "A",
-    arrivalDate: "22/04/2026",
-    minPrice: "2100",
-    maxPrice: "2600",
-    modalPrice: "2350",
-  },
-  {
-    state: "Karnataka",
-    district: "Mysuru",
-    market: "Mysuru Yard",
-    commodity: "Rice",
-    variety: "Sona Masuri",
-    grade: "A",
-    arrivalDate: "22/04/2026",
-    minPrice: "3000",
-    maxPrice: "3800",
-    modalPrice: "3450",
-  },
-  {
-    state: "Madhya Pradesh",
-    district: "Indore",
-    market: "Indore Grain Hub",
-    commodity: "Soyabean",
-    variety: "Yellow",
-    grade: "A",
-    arrivalDate: "22/04/2026",
-    minPrice: "4500",
-    maxPrice: "5200",
-    modalPrice: "4880",
-  },
-];
+import { env } from "../config/env.js";
 
-export async function getMarketPrices(req, res) {
-  const q = (req.query.q || "").toString().trim().toLowerCase();
-  const state = (req.query.state || "").toString().trim().toLowerCase();
-  const commodity = (req.query.commodity || "").toString().trim().toLowerCase();
+const MANDI_API_URL =
+  "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070";
 
-  const filtered = samplePrices.filter((item) => {
-    const matchesState = !state || item.state.toLowerCase() === state;
-    const matchesCommodity =
-      !commodity || item.commodity.toLowerCase() === commodity;
-    const matchesQ =
-      !q ||
-      item.commodity.toLowerCase().includes(q) ||
-      item.market.toLowerCase().includes(q) ||
-      item.district.toLowerCase().includes(q) ||
-      item.state.toLowerCase().includes(q);
+function mapPriceRecord(record) {
+  return {
+    state: record.state || "",
+    district: record.district || "",
+    market: record.market || "",
+    commodity: record.commodity || "",
+    variety: record.variety || "",
+    grade: record.grade || "",
+    arrivalDate: record.arrival_date || "",
+    minPrice: String(record.min_price ?? "0"),
+    maxPrice: String(record.max_price ?? "0"),
+    modalPrice: String(record.modal_price ?? "0"),
+  };
+}
 
-    return matchesState && matchesCommodity && matchesQ;
+async function fetchMandiRecords({ state, commodity }) {
+  const params = new URLSearchParams({
+    "api-key": env.MANDI_API_KEY,
+    format: "json",
+    limit: "100",
   });
 
-  return res.status(200).json({ prices: filtered });
+  if (state) {
+    params.set("filters[state.keyword]", state);
+  }
+
+  if (commodity) {
+    params.set("filters[commodity]", commodity);
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12_000);
+
+  try {
+    const response = await fetch(`${MANDI_API_URL}?${params.toString()}`, {
+      signal: controller.signal,
+      headers: { Accept: "application/json" },
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Mandi API error ${response.status}: ${text}`);
+    }
+
+    const data = await response.json();
+    return Array.isArray(data.records) ? data.records : [];
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+export async function getMarketPrices(req, res, next) {
+  try {
+    if (!env.MANDI_API_KEY) {
+      return res.status(503).json({
+        message: "MANDI_API_KEY is missing in server environment",
+        prices: [],
+      });
+    }
+
+    const q = (req.query.q || "").toString().trim().toLowerCase();
+    const state = (req.query.state || "").toString().trim();
+    const commodity = (req.query.commodity || "").toString().trim();
+
+    const records = await fetchMandiRecords({ state, commodity });
+    const mapped = records.map(mapPriceRecord);
+
+    const filtered = !q
+      ? mapped
+      : mapped.filter((item) => {
+          return (
+            item.commodity.toLowerCase().includes(q) ||
+            item.market.toLowerCase().includes(q) ||
+            item.district.toLowerCase().includes(q) ||
+            item.state.toLowerCase().includes(q)
+          );
+        });
+
+    return res.status(200).json({
+      prices: filtered,
+      source: "data.gov.in",
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    return next(error);
+  }
 }

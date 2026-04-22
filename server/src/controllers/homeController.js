@@ -1,41 +1,74 @@
 import { ScanRecord } from "../models/ScanRecord.js";
+import { Crop } from "../models/Crop.js";
+import { getWeather, getWeatherStale } from "../services/weatherService.js";
+import { getTodayInstructions, getRiskMeters, getGreeting } from "../services/actionEngine.js";
 
 export async function getHomeData(req, res, next) {
   try {
-    const recent = req.user
-      ? await ScanRecord.find({ userId: req.user.sub })
-          .sort({ createdAt: -1 })
-          .limit(1)
-      : [];
+    const lat = Number(req.query.lat ?? 28.6);
+    const lon = Number(req.query.lon ?? 77.2);
 
-    const latest = recent[0];
+    /* ── 1. Live weather (with stale fallback) ──────────────────────── */
+    let weather;
+    let weatherStale = false;
+    try {
+      weather = await getWeather(
+        Number.isFinite(lat) ? lat : 28.6,
+        Number.isFinite(lon) ? lon : 77.2,
+      );
+    } catch {
+      weather = getWeatherStale(lat, lon) ?? {
+        tempMax: 30, precipitation: 0, unit: "°C",
+        summary: "Weather unavailable", weatherRisk: 20,
+        forecast: [], stale: true,
+      };
+      weatherStale = true;
+    }
 
-    const payload = {
-      greeting: "Good Morning",
+    /* ── 2. User's crops for crop-specific instructions ─────────────── */
+    let crops = [];
+    if (req.user) {
+      try {
+        crops = await Crop.find({ userId: req.user.sub }).limit(5).lean();
+      } catch { /* non-fatal */ }
+    }
+
+    /* ── 3. Latest scan for dashboard summary ───────────────────────── */
+    let latestDiagnosis = "No recent diagnosis yet";
+    if (req.user) {
+      try {
+        const scan = await ScanRecord.findOne({ userId: req.user.sub }).sort({ createdAt: -1 }).lean();
+        if (scan) latestDiagnosis = `${scan.diseaseName} (${Math.round(scan.confidence * 100)}%)`;
+      } catch { /* non-fatal */ }
+    }
+
+    /* ── 4. Dynamic content from action engine ──────────────────────── */
+    const instructions = getTodayInstructions(weather, crops);
+    const riskMeters   = getRiskMeters(weather);
+    const greeting     = getGreeting();
+
+    /* ── 5. Location label ──────────────────────────────────────────── */
+    const location = req.query.location || "India";
+
+    const now = new Date().toISOString();
+
+    return res.status(200).json({
+      greeting,
       dashboardTitle: "KisanAI Dashboard",
-      location: "Pune, Maharashtra",
+      location,
       weather: {
-        value: "31C",
-        summary: "Partly cloudy",
+        value:         `${weather.tempMax}${weather.unit}`,
+        summary:       weather.summary,
+        precipitation: weather.precipitation,
+        stale:         weatherStale || weather.stale || false,
+        generatedAt:   weather.generatedAt || now,
       },
-      instructions: [
-        "Check irrigation level in morning and avoid overwatering.",
-        "Inspect lower leaves for early pest signs before noon.",
-        "Plan fertilizer for tomorrow if rain probability is low.",
-      ],
-      riskMeters: {
-        waterStress: 25,
-        pestAlert: 50,
-        weatherRisk: 40,
-      },
-      villageAlert:
-        "Pest activity rising in nearby farms. Inspect mustard and tomato leaves today.",
-      latestDiagnosis: latest
-        ? `${latest.diseaseName} (${Math.round(latest.confidence * 100)}%)`
-        : "No recent diagnosis yet",
-    };
-
-    return res.status(200).json(payload);
+      instructions,
+      riskMeters,
+      latestDiagnosis,
+      generatedAt: now,
+      dataAgeSeconds: 0,
+    });
   } catch (error) {
     return next(error);
   }

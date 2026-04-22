@@ -69,15 +69,7 @@ export default function ProfileScreen() {
           title={`Change Language (${languageCode.toUpperCase()})`}
           onClick={() => setShowLanguagePicker((prev) => !prev)}
         />
-        <ProfileItem
-          icon={<MdAutoAwesome size={20} color="#757575" />}
-          title="AI Autopilot"
-          onClick={() =>
-            window.alert(
-              "Autopilot flow can be connected in the next milestone.",
-            )
-          }
-        />
+        {/* AI Autopilot removed from settings until backend autopilot feature is implemented */}
 
         {showLanguagePicker && (
           <div style={{ marginTop: 6, display: "grid", gap: 8 }}>
