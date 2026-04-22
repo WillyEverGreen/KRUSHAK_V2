@@ -11,9 +11,14 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
     passwordHash: { type: String, required: true },
-    role: { type: String, enum: ["user", "admin"], default: "user" },
-    village: { type: String, default: "Village Name" },
-    district: { type: String, default: "District" },
+    role:         { type: String, enum: ["user", "admin"], default: "user" },
+    village:      { type: String, default: "" },
+    district:     { type: String, default: "" },
+    /* Ready for future fields when MongoDB Atlas is connected: */
+    // phone:     { type: String, default: "" },
+    // state:     { type: String, default: "" },
+    // landAcres: { type: Number, default: 0 },
+    // avatarUrl: { type: String, default: "" },
   },
   { timestamps: true },
 );

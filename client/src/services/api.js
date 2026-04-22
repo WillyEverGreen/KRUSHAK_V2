@@ -7,6 +7,7 @@ export async function login(payload) {
 }
 
 export async function register(payload) {
+  // payload: { fullName, email, password, village?, district? }
   const { data } = await http.post("/auth/register", payload);
   return data;
 }
@@ -62,7 +63,7 @@ export async function fetchFarmData() {
 }
 
 export async function fetchCrops({ lat, lon } = {}) {
-  return withOfflineFallback("crops", async () => {
+  return withOfflineFallback("crops_v2", async () => {
     const params = {};
     if (typeof lat === "number") params.lat = lat;
     if (typeof lon === "number") params.lon = lon;

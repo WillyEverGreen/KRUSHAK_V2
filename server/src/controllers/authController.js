@@ -6,8 +6,10 @@ import { User } from "../models/User.js";
 
 const registerSchema = z.object({
   fullName: z.string().min(2),
-  email: z.string().email(),
+  email:    z.string().email(),
   password: z.string().min(8),
+  village:  z.string().max(100).optional().default(""),
+  district: z.string().max(100).optional().default(""),
 });
 
 const loginSchema = z.object({
@@ -39,10 +41,12 @@ export async function register(req, res, next) {
 
     const passwordHash = await bcrypt.hash(payload.password, 10);
     const user = await User.create({
-      fullName: payload.fullName,
-      email: payload.email,
+      fullName:     payload.fullName,
+      email:        payload.email,
       passwordHash,
-      role: "user",
+      role:         "user",
+      village:      payload.village  || "",
+      district:     payload.district || "",
     });
 
     const token = buildToken(user);
@@ -50,11 +54,11 @@ export async function register(req, res, next) {
     return res.status(201).json({
       token,
       user: {
-        id: user._id,
+        id:       user._id,
         fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        village: user.village,
+        email:    user.email,
+        role:     user.role,
+        village:  user.village,
         district: user.district,
       },
     });

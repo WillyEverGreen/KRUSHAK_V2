@@ -2,6 +2,37 @@ import { z } from "zod";
 import { Crop, STAGES } from "../models/Crop.js";
 import { getWeather, getWeatherStale } from "../services/weatherService.js";
 
+/* ─── Demo crops shown when no user is logged in ─────────────── */
+const DEMO_CROPS = [
+  {
+    _id:            "demo-crop-1",
+    name:           "Wheat",
+    variety:        "HD-2967",
+    stage:          "Vegetative",
+    sowingDate:     null,
+    fieldSizeAcres: 2,
+    notes:          "",
+  },
+  {
+    _id:            "demo-crop-2",
+    name:           "Tomato",
+    variety:        "Cherry",
+    stage:          "Flowering",
+    sowingDate:     null,
+    fieldSizeAcres: 0.5,
+    notes:          "",
+  },
+  {
+    _id:            "demo-crop-3",
+    name:           "Rice",
+    variety:        "Basmati",
+    stage:          "Sowing",
+    sowingDate:     null,
+    fieldSizeAcres: 1,
+    notes:          "",
+  },
+];
+
 const cropInputSchema = z.object({
   name:           z.string().min(2).max(60),
   variety:        z.string().max(60).default(""),
@@ -50,13 +81,9 @@ function suggestAction(crop, weather) {
   return "Inspect daily and record observations.";
 }
 
-/** List all crops for the authenticated user */
+/** List all crops — returns demo data when not authenticated */
 export async function getCrops(req, res, next) {
   try {
-    if (!req.user) return res.status(401).json({ message: "Login required" });
-
-    const crops = await Crop.find({ userId: req.user.sub }).sort({ createdAt: -1 });
-
     // Fetch weather (best-effort; don't fail if unavailable)
     let weather = null;
     try {
@@ -66,6 +93,25 @@ export async function getCrops(req, res, next) {
     } catch {
       weather = getWeatherStale(28.6, 77.2);
     }
+
+    /* No user → return demo crops so farmers can see the UI */
+    if (!req.user) {
+      const enriched = DEMO_CROPS.map((crop) => ({
+        ...crop,
+        health:  computeHealth(crop, weather),
+        water:   (weather?.precipitation ?? 0) > 3 ? "Rain expected" : "Check irrigation",
+        action:  suggestAction(crop, weather),
+        createdAt: new Date().toISOString(),
+        isDemo:  true,
+      }));
+      return res.status(200).json({
+        crops:       enriched,
+        isDemo:      true,
+        generatedAt: new Date().toISOString(),
+      });
+    }
+
+    const crops = await Crop.find({ userId: req.user.sub }).sort({ createdAt: -1 });
 
     const enriched = crops.map((crop) => ({
       _id:            crop._id,
@@ -82,7 +128,8 @@ export async function getCrops(req, res, next) {
     }));
 
     return res.status(200).json({
-      crops: enriched,
+      crops:       enriched,
+      isDemo:      false,
       generatedAt: new Date().toISOString(),
     });
   } catch (error) {
@@ -93,7 +140,7 @@ export async function getCrops(req, res, next) {
 /** Add a new crop */
 export async function addCrop(req, res, next) {
   try {
-    if (!req.user) return res.status(401).json({ message: "Login required" });
+    if (!req.user) return res.status(401).json({ message: "Login required to save crops. Please create an account.", code: "AUTH_REQUIRED" });
 
     const payload = cropInputSchema.parse(req.body);
     const crop = await Crop.create({

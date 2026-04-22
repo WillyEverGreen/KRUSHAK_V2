@@ -1,14 +1,14 @@
-import { useState } from "react";
 import {
-  MdAutoAwesome,
   MdChevronRight,
   MdHelpOutline,
   MdLanguage,
+  MdLogin,
   MdLogout,
   MdPerson,
 } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
 import { useSessionStore } from "../app/store";
+import { useState } from "react";
 
 const languages = [
   { code: "en", nativeName: "English" },
@@ -23,54 +23,110 @@ const languages = [
 
 export default function ProfileScreen() {
   const navigate = useNavigate();
-  const { user, clearSession, languageCode, setLanguageCode } =
-    useSessionStore();
+  const { user, clearSession, languageCode, setLanguageCode } = useSessionStore();
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
 
-  const name = user?.fullName || "Farmer User";
-  const village = user?.village || "Village Name";
-  const district = user?.district || "District";
+  /* ── Logged-out view ───────────────────────────────────── */
+  if (!user) {
+    return (
+      <div>
+        <div className="profile-login-cta">
+          <div className="profile-login-cta-icon">🌾</div>
+          <div className="profile-login-cta-title">Welcome to Krushak</div>
+          <div className="profile-login-cta-sub">
+            Login or create a free account to save your crops, set reminders,
+            and get personalised farming advice.
+          </div>
+          <button
+            className="profile-login-btn"
+            onClick={() => navigate("/login")}
+            id="profile-login-btn"
+          >
+            <MdLogin size={20} />
+            Login / Register
+          </button>
+        </div>
+
+        {/* Language picker still available without login */}
+        <div className="card-elevated mt-16">
+          <div className="text-xs muted" style={{ fontWeight: 700, letterSpacing: 1 }}>
+            LANGUAGE
+          </div>
+          <ProfileItem
+            icon={<MdLanguage size={20} color="#757575" />}
+            title={`Change Language (${languageCode.toUpperCase()})`}
+            onClick={() => setShowLanguagePicker((p) => !p)}
+          />
+          {showLanguagePicker && (
+            <div style={{ marginTop: 6, display: "grid", gap: 8 }}>
+              {languages.map((lang) => (
+                <button
+                  key={lang.code}
+                  className="btn"
+                  style={{
+                    background: lang.code === languageCode ? "#e8f5e9" : "#f8faf8",
+                    color: "#1b5e20",
+                    textAlign: "left",
+                    border: "1px solid #e5ece7",
+                  }}
+                  onClick={() => {
+                    setLanguageCode(lang.code);
+                    setShowLanguagePicker(false);
+                  }}
+                >
+                  {lang.nativeName}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card-elevated mt-16">
+          <div className="text-xs muted" style={{ fontWeight: 700, letterSpacing: 1 }}>
+            SUPPORT
+          </div>
+          <ProfileItem
+            icon={<MdHelpOutline size={20} color="#757575" />}
+            title="Help and FAQ"
+            onClick={() => navigate("/faq")}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Logged-in view ────────────────────────────────────── */
+  const initials = user.fullName
+    ? user.fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+    : "F";
 
   return (
     <div>
-      <div style={{ height: 20 }} />
-      <div
-        style={{
-          width: 100,
-          height: 100,
-          borderRadius: 50,
-          background: "#e5e7eb",
-          border: "3px solid #d1d5db",
-          margin: "0 auto",
-          display: "grid",
-          placeItems: "center",
-        }}
-      >
-        <MdPerson size={52} color="#9ca3af" />
-      </div>
-      <div style={{ textAlign: "center" }} className="mt-16">
-        <div className="text-xxl" style={{ fontWeight: 700 }}>
-          {name}
+      {/* User badge */}
+      <div className="profile-user-badge">
+        <div className="profile-user-avatar">
+          <span style={{ fontSize: 20, fontWeight: 800, color: "#fff" }}>{initials}</span>
         </div>
-        <div className="text-sm muted">
-          {village}, {district}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="profile-user-name">{user.fullName || "Farmer"}</div>
+          <div className="profile-user-email">{user.email || ""}</div>
+          {(user.village || user.district) && (
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.72)", marginTop: 2 }}>
+              📍 {[user.village, user.district].filter(Boolean).join(", ")}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="card-elevated mt-20">
-        <div
-          className="text-xs muted"
-          style={{ fontWeight: 700, letterSpacing: 1 }}
-        >
+      <div className="card-elevated mt-12">
+        <div className="text-xs muted" style={{ fontWeight: 700, letterSpacing: 1 }}>
           SETTINGS
         </div>
         <ProfileItem
           icon={<MdLanguage size={20} color="#757575" />}
           title={`Change Language (${languageCode.toUpperCase()})`}
-          onClick={() => setShowLanguagePicker((prev) => !prev)}
+          onClick={() => setShowLanguagePicker((p) => !p)}
         />
-        {/* AI Autopilot removed from settings until backend autopilot feature is implemented */}
-
         {showLanguagePicker && (
           <div style={{ marginTop: 6, display: "grid", gap: 8 }}>
             {languages.map((lang) => (
@@ -78,8 +134,7 @@ export default function ProfileScreen() {
                 key={lang.code}
                 className="btn"
                 style={{
-                  background:
-                    lang.code === languageCode ? "#e8f5e9" : "#f8faf8",
+                  background: lang.code === languageCode ? "#e8f5e9" : "#f8faf8",
                   color: "#1b5e20",
                   textAlign: "left",
                   border: "1px solid #e5ece7",
@@ -97,10 +152,7 @@ export default function ProfileScreen() {
       </div>
 
       <div className="card-elevated mt-16">
-        <div
-          className="text-xs muted"
-          style={{ fontWeight: 700, letterSpacing: 1 }}
-        >
+        <div className="text-xs muted" style={{ fontWeight: 700, letterSpacing: 1 }}>
           SUPPORT
         </div>
         <ProfileItem
@@ -114,7 +166,7 @@ export default function ProfileScreen() {
           destructive
           onClick={() => {
             clearSession();
-            window.alert("Logged out from local session.");
+            navigate("/login", { replace: true });
           }}
         />
       </div>
@@ -144,6 +196,7 @@ function ProfileItem({ icon, title, onClick, destructive = false }) {
           textAlign: "left",
           color: destructive ? "#ef4444" : "#1b5e20",
           fontSize: 16,
+          fontFamily: "inherit",
         }}
       >
         {title}

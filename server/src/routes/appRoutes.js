@@ -48,10 +48,10 @@ router.patch("/farm/reminders/:id/toggle",   requireAuth,  toggleReminder);
 router.delete("/farm/reminders/:id",         requireAuth,  deleteReminder);
 
 /* ── Crops (user's registered crop list) ─────────────────────────────── */
-router.get("/farm/crops",        requireAuth, getCrops);
-router.post("/farm/crops",       requireAuth, addCrop);
-router.patch("/farm/crops/:id",  requireAuth, updateCrop);
-router.delete("/farm/crops/:id", requireAuth, deleteCrop);
+router.get("/farm/crops",        optionalAuth, getCrops);   // demo crops when logged out
+router.post("/farm/crops",       requireAuth,  addCrop);
+router.patch("/farm/crops/:id",  requireAuth,  updateCrop);
+router.delete("/farm/crops/:id", requireAuth,  deleteCrop);
 
 /* ── Market ───────────────────────────────────────────────────────────── */
 router.get("/market/prices", getMarketPrices);

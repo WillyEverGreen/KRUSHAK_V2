@@ -10,17 +10,23 @@ import NewsScreen from "../screens/NewsScreen";
 import ChatScreen from "../screens/ChatScreen";
 import CareGuidesScreen from "../screens/CareGuidesScreen";
 import FaqScreen from "../screens/FaqScreen";
+import AuthScreen from "../screens/AuthScreen";
 
 export default function App() {
   return (
     <div className="app-root">
       <Routes>
+        {/* ── Full-screen auth (no bottom nav) ── */}
+        <Route path="/login" element={<AuthScreen />} />
+
+        {/* ── Main app shell ── */}
         <Route element={<MobileShell />}>
-          <Route path="/home" element={<HomeScreen />} />
+          <Route path="/home"     element={<HomeScreen />} />
           <Route path="/diagnose" element={<DiagnoseScreen />} />
-          <Route path="/farm" element={<MyFarmScreen />} />
-          <Route path="/market" element={<MarketScreen />} />
-          <Route path="/profile" element={<ProfileScreen />} />
+          <Route path="/farm"     element={<MyFarmScreen />} />
+          <Route path="/market"   element={<MarketScreen />} />
+          <Route path="/profile"  element={<ProfileScreen />} />
+
           <Route
             path="/news"
             element={
@@ -58,8 +64,8 @@ export default function App() {
           />
         </Route>
 
-        <Route path="/" element={<Navigate to="/home" replace />} />
-        <Route path="*" element={<Navigate to="/home" replace />} />
+        <Route path="/"  element={<Navigate to="/home" replace />} />
+        <Route path="*"  element={<Navigate to="/home" replace />} />
       </Routes>
     </div>
   );
