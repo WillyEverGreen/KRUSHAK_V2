@@ -35,14 +35,18 @@ export async function fetchDiseaseCatalog(query = "") {
   const { data } = await http.get("/diagnose/catalog", {
     params: { q: query },
   });
-  return data.diseases || [];
+  return data;
 }
 
 export async function analyzePlantImage(payload) {
   const { data } = await http.post("/diagnose/analyze", payload, {
     timeout: 45_000,
   });
-  return data.analysis;
+  return {
+    analysis: data.analysis,
+    fromCache: Boolean(data?.meta?.cached),
+    imageHash: data?.meta?.imageHash || "",
+  };
 }
 
 export async function fetchRecentDiagnoses() {

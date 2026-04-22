@@ -30,7 +30,9 @@ export default function MobileShell() {
       <nav className="bottom-nav" aria-label="Main navigation">
         {navItems.map((item) => {
           const Icon   = item.icon;
-          const active = location.pathname === item.path;
+          const active =
+            location.pathname === item.path ||
+            location.pathname.startsWith(`${item.path}/`);
           /* Show a green dot on Profile when NOT logged in */
           const showDot = item.path === "/profile" && !user;
 

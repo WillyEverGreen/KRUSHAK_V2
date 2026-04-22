@@ -1,5 +1,7 @@
+import { createHash } from "crypto";
 import { z } from "zod";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { DiagnosisCache } from "../models/DiagnosisCache.js";
 import { ScanRecord } from "../models/ScanRecord.js";
 import { env } from "../config/env.js";
 
@@ -138,6 +140,13 @@ function stripDataUrlPrefix(base64) {
   return parts.length > 1 ? parts[1] : parts[0];
 }
 
+function buildImageHash(imageBase64, mimeType) {
+  const normalizedData = stripDataUrlPrefix(imageBase64).replace(/\s+/g, "");
+  return createHash("sha256")
+    .update(`${mimeType}|${normalizedData}`)
+    .digest("hex");
+}
+
 function confidenceLabelToScore(label) {
   if (label === "High") return 0.9;
   if (label === "Medium") return 0.7;
@@ -146,6 +155,25 @@ function confidenceLabelToScore(label) {
 
 function isUnknownAnalysis(analysis) {
   return analysis.crop === "Unknown" || analysis.disease === "Unknown";
+}
+
+async function persistScanHistory(user, analysis) {
+  if (!user || isUnknownAnalysis(analysis)) {
+    return;
+  }
+
+  try {
+    await ScanRecord.create({
+      userId: user.sub,
+      crop: analysis.crop,
+      diseaseName: analysis.disease,
+      confidence: confidenceLabelToScore(analysis.confidence),
+      description: analysis.reasoning,
+      imageUrl: "",
+    });
+  } catch {
+    // Keep diagnosis successful even if history persistence fails.
+  }
 }
 
 function isModelNotFoundError(error) {
@@ -360,6 +388,36 @@ export async function analyzePlantImage(req, res, next) {
     }
 
     const payload = parsedPayload.data;
+    const imageHash = buildImageHash(payload.imageBase64, payload.mimeType);
+
+    let cachedRecord = null;
+    try {
+      cachedRecord = await DiagnosisCache.findOne({ imageHash }).lean();
+    } catch {
+      cachedRecord = null;
+    }
+
+    if (cachedRecord?.analysis) {
+      await persistScanHistory(req.user, cachedRecord.analysis);
+
+      DiagnosisCache.updateOne(
+        { imageHash },
+        {
+          $inc: { hitCount: 1 },
+          $set: { lastAccessedAt: new Date() },
+        },
+      ).catch(() => {
+        // Cache hit stats are non-blocking.
+      });
+
+      return res.status(200).json({
+        analysis: cachedRecord.analysis,
+        meta: {
+          cached: true,
+          imageHash,
+        },
+      });
+    }
 
     const geminiClient = getGeminiClient();
     if (!geminiClient) {
@@ -461,26 +519,36 @@ Return ONLY valid JSON with fields: crop, disease, confidence, reasoning, sympto
       }
     }
 
-    if (
-      req.user &&
-      analysis.crop !== "Unknown" &&
-      analysis.disease !== "Unknown"
-    ) {
-      try {
-        await ScanRecord.create({
-          userId: req.user.sub,
-          crop: analysis.crop,
-          diseaseName: analysis.disease,
-          confidence: confidenceLabelToScore(analysis.confidence),
-          description: analysis.reasoning,
-          imageUrl: "",
-        });
-      } catch {
-        // Keep analysis response successful even when history persistence fails.
-      }
+    try {
+      await DiagnosisCache.findOneAndUpdate(
+        { imageHash },
+        {
+          $set: {
+            mimeType: payload.mimeType,
+            analysis,
+            lastAccessedAt: new Date(),
+          },
+          $inc: { hitCount: 1 },
+        },
+        {
+          upsert: true,
+          new: true,
+          setDefaultsOnInsert: true,
+        },
+      );
+    } catch {
+      // Continue even if cache persistence fails.
     }
 
-    return res.status(200).json({ analysis });
+    await persistScanHistory(req.user, analysis);
+
+    return res.status(200).json({
+      analysis,
+      meta: {
+        cached: false,
+        imageHash,
+      },
+    });
   } catch (error) {
     return res.status(200).json({ analysis: fallbackUnknownResponse });
   }

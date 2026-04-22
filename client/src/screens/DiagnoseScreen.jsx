@@ -1,11 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import {
-  MdAnalytics,
-  MdCameraAlt,
-  MdSearch,
-  MdWarningAmber,
-} from "react-icons/md";
+import { MdAnalytics, MdCameraAlt, MdSearch, MdWarningAmber } from "react-icons/md";
+import { useNavigate } from "react-router-dom";
 import {
   analyzePlantImage,
   fetchDiseaseCatalog,
@@ -14,6 +10,7 @@ import {
 } from "../services/api";
 import DataState from "../components/DataState";
 import FreshnessTag from "../components/FreshnessTag";
+import { buildAnalysisPayload } from "../utils/imagePayload";
 
 function severityColor(severity) {
   if (severity === "High") return "#ef4444";
@@ -21,65 +18,10 @@ function severityColor(severity) {
   return "#2e7d32";
 }
 
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-function dataUrlToImage(dataUrl) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
-}
-
-async function buildAnalysisPayload(file) {
-  const originalDataUrl = await fileToDataUrl(file);
-
-  // Convert to JPEG so the model receives a consistent, well-supported format.
-  const img = await dataUrlToImage(originalDataUrl);
-  const maxSide = 1600;
-  const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-  const width = Math.max(1, Math.round(img.width * scale));
-  const height = Math.max(1, Math.round(img.height * scale));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    return {
-      imageBase64: originalDataUrl,
-      mimeType: file.type || "image/jpeg",
-    };
-  }
-
-  ctx.drawImage(img, 0, 0, width, height);
-  const jpegDataUrl = canvas.toDataURL("image/jpeg", 0.9);
-
-  return {
-    imageBase64: jpegDataUrl,
-    mimeType: "image/jpeg",
-  };
-}
-
-function prettyList(items) {
-  if (!items || items.length === 0) return "Not available";
-  return items.join(", ");
-}
-
 export default function DiagnoseScreen() {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [analysis, setAnalysis] = useState(null);
   const [scanError, setScanError] = useState("");
-  const [lastFileName, setLastFileName] = useState("");
   const fileInputRef = useRef(null);
 
   const { data: catalogData, isLoading: catalogLoading, error: catalogError } = useQuery({
@@ -108,15 +50,11 @@ export default function DiagnoseScreen() {
     return `Search Results (${diseaseList.length})`;
   }, [query, diseaseList.length]);
 
-  const isUnknownResult =
-    analysis && (analysis.crop === "Unknown" || analysis.disease === "Unknown");
-
   async function handleImagePicked(event) {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setScanError("");
-    setLastFileName(file.name);
 
     if (!file.type.startsWith("image/")) {
       setScanError("Please choose a valid image file.");
@@ -131,8 +69,14 @@ export default function DiagnoseScreen() {
     try {
       const payload = await buildAnalysisPayload(file);
       const result = await analyzeMutation.mutateAsync(payload);
-
-      setAnalysis(result);
+      navigate("/diagnose/result", {
+        state: {
+          analysis: result.analysis || null,
+          fromCache: Boolean(result.fromCache),
+          fileName: file.name,
+          imageHash: result.imageHash || "",
+        },
+      });
     } catch (error) {
       const message =
         error?.response?.data?.message ||
@@ -194,64 +138,6 @@ export default function DiagnoseScreen() {
       {scanError && (
         <div className="card mt-12" style={{ color: "#ef4444" }}>
           {scanError}
-        </div>
-      )}
-
-      {analysis && (
-        <div className="card mt-12">
-          <div className="row-between">
-            <div className="text-lg" style={{ fontWeight: 800 }}>
-              Latest AI Diagnosis
-            </div>
-            <div
-              className="text-sm"
-              style={{
-                fontWeight: 700,
-                color: severityColor(analysis.confidence),
-              }}
-            >
-              {analysis.confidence}
-            </div>
-          </div>
-          {lastFileName && (
-            <div className="text-sm mt-8 muted">Image: {lastFileName}</div>
-          )}
-          <div className="text-md mt-8" style={{ color: "#1b5e20" }}>
-            Crop: <strong>{analysis.crop}</strong>
-          </div>
-          <div className="text-md mt-8" style={{ color: "#1b5e20" }}>
-            Disease: <strong>{analysis.disease}</strong>
-          </div>
-          <div className="text-sm mt-8 muted">{analysis.reasoning}</div>
-          <div className="text-sm mt-8 muted">
-            Symptoms: {prettyList(analysis.symptoms)}
-          </div>
-          <div className="text-sm mt-8 muted">
-            Causes: {prettyList(analysis.causes)}
-          </div>
-          <div className="text-sm mt-8 muted">
-            Treatment: {prettyList(analysis.treatment)}
-          </div>
-          <div className="text-sm mt-8 muted">
-            Prevention: {prettyList(analysis.prevention)}
-          </div>
-        </div>
-      )}
-
-      {isUnknownResult && (
-        <div className="card mt-10" style={{ color: "#1b5e20" }}>
-          <div className="text-md" style={{ fontWeight: 700 }}>
-            Improve Scan Accuracy
-          </div>
-          <div className="text-sm mt-8 muted">
-            Capture one affected leaf in close-up.
-          </div>
-          <div className="text-sm mt-6 muted">
-            Use daylight and avoid blur or strong shadows.
-          </div>
-          <div className="text-sm mt-6 muted">
-            Keep symptoms clearly visible in the center of the image.
-          </div>
         </div>
       )}
 

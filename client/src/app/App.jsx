@@ -3,6 +3,7 @@ import MobileShell from "../components/MobileShell";
 import SubpageLayout from "../components/SubpageLayout";
 import HomeScreen from "../screens/HomeScreen";
 import DiagnoseScreen from "../screens/DiagnoseScreen";
+import DiagnoseResultScreen from "../screens/DiagnoseResultScreen";
 import MyFarmScreen from "../screens/MyFarmScreen";
 import MarketScreen from "../screens/MarketScreen";
 import ProfileScreen from "../screens/ProfileScreen";
@@ -23,6 +24,14 @@ export default function App() {
         <Route element={<MobileShell />}>
           <Route path="/home"     element={<HomeScreen />} />
           <Route path="/diagnose" element={<DiagnoseScreen />} />
+          <Route
+            path="/diagnose/result"
+            element={
+              <SubpageLayout title="Diagnosis Report">
+                <DiagnoseResultScreen />
+              </SubpageLayout>
+            }
+          />
           <Route path="/farm"     element={<MyFarmScreen />} />
           <Route path="/market"   element={<MarketScreen />} />
           <Route path="/profile"  element={<ProfileScreen />} />
