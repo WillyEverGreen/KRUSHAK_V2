@@ -195,15 +195,6 @@ export default function DiagnoseResultScreen() {
 
           <div className="row mt-8" style={{ flexWrap: "wrap" }}>
             {lastFileName && <div className="chip">Image: {lastFileName}</div>}
-            {analysisFromCache && (
-              <div
-                className="chip"
-                style={{ background: "#e8f0ff", color: "#1e40af" }}
-              >
-                <MdAccessTime size={14} style={{ marginRight: 6 }} />
-                Cached match
-              </div>
-            )}
           </div>
 
           <div

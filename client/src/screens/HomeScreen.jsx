@@ -56,22 +56,29 @@ function renderTemperature(value) {
 export default function HomeScreen() {
   const navigate = useNavigate();
 
-  /* Geolocation state */
-  const [coords, setCoords] = useState(null); // { latitude, longitude }
+  // undefined = still waiting for GPS, null = denied/unavailable, object = resolved
+  const [coords, setCoords] = useState(undefined);
 
   useEffect(() => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      setCoords(null); // browser doesn't support — fall back immediately
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) => setCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-      () => setCoords(null), // silently fall back
-      { timeout: 8000 }
+      () => setCoords(null), // denied / timed out — fall back to server default
+      { timeout: 8000, maximumAge: 5 * 60 * 1000 }
     );
   }, []);
 
+  // Don't fire the API call until we know whether we have coords or not
+  const geoReady = coords !== undefined;
+
   /* Home data from server (includes weather, instructions, risk meters) */
   const { data, isLoading, error } = useQuery({
-    queryKey: ["home-data", coords?.latitude, coords?.longitude],
+    queryKey: ["home-data", coords?.latitude ?? null, coords?.longitude ?? null],
     queryFn: () => fetchHomeData({ lat: coords?.latitude, lon: coords?.longitude }),
+    enabled: geoReady, // wait for geolocation to resolve first
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 

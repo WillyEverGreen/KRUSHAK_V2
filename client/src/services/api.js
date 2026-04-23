@@ -12,9 +12,13 @@ export async function register(payload) {
   return data;
 }
 
-export async function fetchHomeData() {
-  return withOfflineFallback("home", async () => {
-    const { data } = await http.get("/home");
+export async function fetchHomeData({ lat, lon } = {}) {
+  const cacheKey = `home_${lat ?? "def"}_${lon ?? "def"}`;
+  return withOfflineFallback(cacheKey, async () => {
+    const params = {};
+    if (typeof lat === "number") params.lat = lat;
+    if (typeof lon === "number") params.lon = lon;
+    const { data } = await http.get("/home", { params });
     return data;
   });
 }
