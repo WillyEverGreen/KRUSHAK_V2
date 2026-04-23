@@ -140,8 +140,9 @@ export default function MyFarmScreen() {
   }, []);
 
   const { data: farmData, isLoading: farmLoading, error: farmError } = useQuery({
-    queryKey: ["farm-data"],
-    queryFn: fetchFarmData,
+    queryKey: ["farm-data", coords?.latitude, coords?.longitude],
+    queryFn: () =>
+      fetchFarmData({ lat: coords?.latitude, lon: coords?.longitude }),
     enabled: Boolean(user),
     staleTime: 3 * 60 * 1000,
   });

@@ -3,7 +3,7 @@ import { Reminder } from "../models/Reminder.js";
 import { ScanRecord } from "../models/ScanRecord.js";
 import { Livestock, LIVESTOCK_TYPES } from "../models/Livestock.js";
 import { Crop } from "../models/Crop.js";
-import { getWeatherStale } from "../services/weatherService.js";
+import { getWeather, getWeatherStale } from "../services/weatherService.js";
 
 /* ─── Quick reminder templates (API-backed hints for UI) ──────────────── */
 const QUICK_REMINDER_TEMPLATES = [
@@ -142,6 +142,11 @@ const feedReminderInputSchema = z.object({
 
 export async function getFarmData(req, res, next) {
   try {
+    const lat = Number(req.query.lat ?? 28.6);
+    const lon = Number(req.query.lon ?? 77.2);
+    const safeLat = Number.isFinite(lat) ? lat : 28.6;
+    const safeLon = Number.isFinite(lon) ? lon : 77.2;
+
     let reminders = [];
     let latestDiagnosis = "No recent diagnosis yet";
     let livestock = [];
@@ -182,7 +187,13 @@ export async function getFarmData(req, res, next) {
     }
 
     /* Best-effort weather for annotations */
-    const weather = getWeatherStale(28.6, 77.2);
+    let weather;
+    try {
+      weather = await getWeather(safeLat, safeLon, req.query.timezone || "Asia/Kolkata");
+    } catch {
+      weather = getWeatherStale(safeLat, safeLon);
+    }
+
     const annotated = annotateReminders(reminders, weather);
     const livestockTips = buildLivestockTips(weather, livestock);
 
@@ -194,7 +205,9 @@ export async function getFarmData(req, res, next) {
       cropCards,
       quickReminderTemplates: QUICK_REMINDER_TEMPLATES,
       generatedAt: new Date().toISOString(),
-      weatherSummary: weather ? `${weather.tempMax}°C · ${weather.summary}` : null,
+      weatherSummary: weather
+        ? `${weather.tempMax}${weather.unit || "°C"} · ${weather.summary}`
+        : null,
     });
   } catch (error) {
     return next(error);

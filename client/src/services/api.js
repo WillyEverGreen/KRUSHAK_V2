@@ -63,9 +63,14 @@ export async function saveDiagnosisRecord(payload) {
   return data.record;
 }
 
-export async function fetchFarmData() {
-  return withOfflineFallback("farm", async () => {
-    const { data } = await http.get("/farm");
+export async function fetchFarmData({ lat, lon, timezone } = {}) {
+  const cacheKey = `farm_${lat ?? "def"}_${lon ?? "def"}`;
+  return withOfflineFallback(cacheKey, async () => {
+    const params = {};
+    if (typeof lat === "number") params.lat = lat;
+    if (typeof lon === "number") params.lon = lon;
+    if (timezone) params.timezone = timezone;
+    const { data } = await http.get("/farm", { params });
     return data;
   });
 }
