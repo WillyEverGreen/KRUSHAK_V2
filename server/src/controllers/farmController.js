@@ -45,7 +45,10 @@ const QUICK_REMINDER_TEMPLATES = [
 function buildLivestockTips(weather, livestockList) {
   const temp = weather?.tempMax ?? 28;
   const rain = weather?.precipitation ?? 0;
-  const totalAnimals = livestockList.reduce((sum, item) => sum + (item.count || 0), 0);
+  const totalAnimals = livestockList.reduce(
+    (sum, item) => sum + (item.count || 0),
+    0,
+  );
   const tips = [];
 
   if (totalAnimals > 0) {
@@ -95,13 +98,18 @@ function annotateReminders(reminders, weather) {
   return reminders.map((r) => {
     const task = (r.task || "").toLowerCase();
     let skipWarning = null;
-    if (rainSoon && (task.includes("fertilizer") || task.includes("spray") || task.includes("pesticide"))) {
+    if (
+      rainSoon &&
+      (task.includes("fertilizer") ||
+        task.includes("spray") ||
+        task.includes("pesticide"))
+    ) {
       skipWarning = "⚠️ Rain expected — consider postponing";
     }
     if (rain > 10 && (task.includes("irrigat") || task.includes("water"))) {
       skipWarning = "⚠️ Heavy rain today — irrigation likely not needed";
     }
-    return { ...r.toObject?.() ?? r, skipWarning };
+    return { ...(r.toObject?.() ?? r), skipWarning };
   });
 }
 
@@ -153,14 +161,18 @@ export async function getFarmData(req, res, next) {
     let cropCards = [];
 
     if (req.user) {
-      const [dbReminders, recentScan, livestockDocs, crops] = await Promise.all([
-        Reminder.find({ userId: req.user.sub })
-          .sort({ done: 1, createdAt: -1 })
-          .limit(25),
-        ScanRecord.findOne({ userId: req.user.sub }).sort({ createdAt: -1 }),
-        Livestock.find({ userId: req.user.sub }).sort({ createdAt: -1 }).limit(30),
-        Crop.find({ userId: req.user.sub }).sort({ createdAt: -1 }).limit(12),
-      ]);
+      const [dbReminders, recentScan, livestockDocs, crops] = await Promise.all(
+        [
+          Reminder.find({ userId: req.user.sub })
+            .sort({ done: 1, createdAt: -1 })
+            .limit(25),
+          ScanRecord.findOne({ userId: req.user.sub }).sort({ createdAt: -1 }),
+          Livestock.find({ userId: req.user.sub })
+            .sort({ createdAt: -1 })
+            .limit(30),
+          Crop.find({ userId: req.user.sub }).sort({ createdAt: -1 }).limit(12),
+        ],
+      );
 
       reminders = dbReminders;
       livestock = livestockDocs.map((item) => ({
@@ -189,7 +201,11 @@ export async function getFarmData(req, res, next) {
     /* Best-effort weather for annotations */
     let weather;
     try {
-      weather = await getWeather(safeLat, safeLon, req.query.timezone || "Asia/Kolkata");
+      weather = await getWeather(
+        safeLat,
+        safeLon,
+        req.query.timezone || "Asia/Kolkata",
+      );
     } catch {
       weather = getWeatherStale(safeLat, safeLon);
     }
@@ -237,8 +253,12 @@ export async function addReminder(req, res, next) {
 export async function toggleReminder(req, res, next) {
   try {
     if (!req.user) return res.status(401).json({ message: "Login required" });
-    const reminder = await Reminder.findOne({ _id: req.params.id, userId: req.user.sub });
-    if (!reminder) return res.status(404).json({ message: "Reminder not found" });
+    const reminder = await Reminder.findOne({
+      _id: req.params.id,
+      userId: req.user.sub,
+    });
+    if (!reminder)
+      return res.status(404).json({ message: "Reminder not found" });
     reminder.done = !reminder.done;
     await reminder.save();
     return res.status(200).json({ reminder });
@@ -250,8 +270,12 @@ export async function toggleReminder(req, res, next) {
 export async function deleteReminder(req, res, next) {
   try {
     if (!req.user) return res.status(401).json({ message: "Login required" });
-    const deleted = await Reminder.findOneAndDelete({ _id: req.params.id, userId: req.user.sub });
-    if (!deleted) return res.status(404).json({ message: "Reminder not found" });
+    const deleted = await Reminder.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user.sub,
+    });
+    if (!deleted)
+      return res.status(404).json({ message: "Reminder not found" });
     return res.status(200).json({ success: true });
   } catch (error) {
     return next(error);
@@ -261,7 +285,9 @@ export async function deleteReminder(req, res, next) {
 export async function getLivestock(req, res, next) {
   try {
     if (!req.user) return res.status(401).json({ message: "Login required" });
-    const livestock = await Livestock.find({ userId: req.user.sub }).sort({ createdAt: -1 });
+    const livestock = await Livestock.find({ userId: req.user.sub }).sort({
+      createdAt: -1,
+    });
     return res.status(200).json({ livestock });
   } catch (error) {
     return next(error);
@@ -332,7 +358,10 @@ export async function addLivestockFeedReminder(req, res, next) {
     if (!req.user) return res.status(401).json({ message: "Login required" });
 
     const payload = feedReminderInputSchema.parse(req.body || {});
-    const livestock = await Livestock.findOne({ _id: req.params.id, userId: req.user.sub });
+    const livestock = await Livestock.findOne({
+      _id: req.params.id,
+      userId: req.user.sub,
+    });
     if (!livestock) {
       return res.status(404).json({ message: "Livestock entry not found" });
     }

@@ -143,7 +143,10 @@ export async function deleteLivestock(id) {
 }
 
 export async function addLivestockFeedReminder(id, payload = {}) {
-  const { data } = await http.post(`/farm/livestock/${id}/feed-reminder`, payload);
+  const { data } = await http.post(
+    `/farm/livestock/${id}/feed-reminder`,
+    payload,
+  );
   return data.reminder;
 }
 

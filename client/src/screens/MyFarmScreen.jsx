@@ -103,7 +103,7 @@ function priorityColor(priority) {
   if (priority === "high") return "#e53935";
   if (priority === "low") return "#2e7d32";
   return "#f57c00";
-};
+}
 
 function healthColor(h) {
   if (h >= 0.75) return "#43a047";
@@ -132,14 +132,22 @@ export default function MyFarmScreen() {
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => setCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+        (pos) =>
+          setCoords({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          }),
         () => setCoords(null),
         { timeout: 8000 },
       );
     }
   }, []);
 
-  const { data: farmData, isLoading: farmLoading, error: farmError } = useQuery({
+  const {
+    data: farmData,
+    isLoading: farmLoading,
+    error: farmError,
+  } = useQuery({
     queryKey: ["farm-data", coords?.latitude, coords?.longitude],
     queryFn: () =>
       fetchFarmData({ lat: coords?.latitude, lon: coords?.longitude }),
@@ -147,9 +155,14 @@ export default function MyFarmScreen() {
     staleTime: 3 * 60 * 1000,
   });
 
-  const { data: cropData, isLoading: cropsLoading, error: cropsError } = useQuery({
+  const {
+    data: cropData,
+    isLoading: cropsLoading,
+    error: cropsError,
+  } = useQuery({
     queryKey: ["crops", coords?.latitude, coords?.longitude],
-    queryFn: () => fetchCrops({ lat: coords?.latitude, lon: coords?.longitude }),
+    queryFn: () =>
+      fetchCrops({ lat: coords?.latitude, lon: coords?.longitude }),
     enabled: Boolean(user),
     staleTime: 3 * 60 * 1000,
   });
@@ -197,14 +210,20 @@ export default function MyFarmScreen() {
     farmData?.quickReminderTemplates?.length > 0
       ? farmData.quickReminderTemplates
       : QUICK_REMINDER_FALLBACK;
-  const latestDiagnosis = farmData?.latestDiagnosis || "No recent diagnosis yet";
+  const latestDiagnosis =
+    farmData?.latestDiagnosis || "No recent diagnosis yet";
   const crops = cropData?.crops || [];
   const weatherSummary = farmData?.weatherSummary;
 
-  const pendingReminders = useMemo(() => reminders.filter((r) => !r.done).length, [reminders]);
+  const pendingReminders = useMemo(
+    () => reminders.filter((r) => !r.done).length,
+    [reminders],
+  );
   const avgHealth = useMemo(
     () =>
-      crops.length ? crops.reduce((s, c) => s + c.health, 0) / crops.length : null,
+      crops.length
+        ? crops.reduce((s, c) => s + c.health, 0) / crops.length
+        : null,
     [crops],
   );
 
@@ -232,7 +251,11 @@ export default function MyFarmScreen() {
 
   const TABS = [
     { label: "All Crops", icon: MdGrass, badge: crops.length || null },
-    { label: "Reminders", icon: MdNotificationsActive, badge: pendingReminders || null },
+    {
+      label: "Reminders",
+      icon: MdNotificationsActive,
+      badge: pendingReminders || null,
+    },
     { label: "Livestock", icon: MdPets, badge: livestock.length || null },
   ];
 
@@ -244,22 +267,32 @@ export default function MyFarmScreen() {
             <div className="farm-header-icon">🌾</div>
             <div>
               <div className="farm-header-title">My Farm</div>
-              <div className="farm-header-sub">Sign in to manage crops, livestock, and reminders</div>
+              <div className="farm-header-sub">
+                Sign in to manage crops, livestock, and reminders
+              </div>
             </div>
           </div>
         </div>
 
         <div className="card-elevated mt-12" style={{ borderRadius: 18 }}>
-          <div className="text-lg" style={{ fontWeight: 800, color: "#1b5e20" }}>
+          <div
+            className="text-lg"
+            style={{ fontWeight: 800, color: "#1b5e20" }}
+          >
             Login Required
           </div>
           <div className="text-sm muted mt-8" style={{ lineHeight: 1.45 }}>
-            My Farm is fully personalized. Login or register to add crops, schedule reminders,
-            and track livestock health.
+            My Farm is fully personalized. Login or register to add crops,
+            schedule reminders, and track livestock health.
           </div>
           <button
             className="btn btn-primary mt-16"
-            style={{ width: "100%", display: "flex", justifyContent: "center", gap: 8 }}
+            style={{
+              width: "100%",
+              display: "flex",
+              justifyContent: "center",
+              gap: 8,
+            }}
             onClick={() => navigate("/login")}
           >
             <MdLogin size={18} />
@@ -334,7 +367,9 @@ export default function MyFarmScreen() {
             >
               <Icon size={16} />
               <span>{tab.label}</span>
-              {tab.badge ? <span className="farm-tab-badge">{tab.badge}</span> : null}
+              {tab.badge ? (
+                <span className="farm-tab-badge">{tab.badge}</span>
+              ) : null}
             </button>
           );
         })}
@@ -387,21 +422,30 @@ export default function MyFarmScreen() {
               error={cropsError}
               empty={crops.length === 0}
               emptyMessage="No crops added yet. Tap '+ Add Crop' to start tracking your farm."
-              emptyAction={{ label: "+ Add Your First Crop", onClick: () => setShowAddCrop(true) }}
+              emptyAction={{
+                label: "+ Add Your First Crop",
+                onClick: () => setShowAddCrop(true),
+              }}
             >
               <div className="farm-crops-grid">
                 {crops.map((crop) => {
                   const meta = STAGE_META[crop.stage] || STAGE_META.Sowing;
                   const hPct = Math.round(crop.health * 100);
                   return (
-                    <div className="farm-crop-card" key={crop._id} id={`crop-card-${crop._id}`}>
+                    <div
+                      className="farm-crop-card"
+                      key={crop._id}
+                      id={`crop-card-${crop._id}`}
+                    >
                       {/* Card header */}
                       <div className="farm-crop-header">
                         <div className="farm-crop-emoji">{meta.emoji}</div>
                         <div className="farm-crop-info">
                           <div className="farm-crop-name">{crop.name}</div>
                           {crop.variety && (
-                            <div className="farm-crop-variety">{crop.variety}</div>
+                            <div className="farm-crop-variety">
+                              {crop.variety}
+                            </div>
                           )}
                         </div>
                         <div
@@ -417,7 +461,10 @@ export default function MyFarmScreen() {
                         <div className="farm-health-bar-wrap">
                           <div
                             className="farm-health-bar-fill"
-                            style={{ width: `${hPct}%`, background: healthColor(crop.health) }}
+                            style={{
+                              width: `${hPct}%`,
+                              background: healthColor(crop.health),
+                            }}
                           />
                         </div>
                         <div
@@ -500,15 +547,21 @@ export default function MyFarmScreen() {
                 >
                   {/* Timeline dot */}
                   <div className="farm-reminder-dot-col">
-                    <div className={`farm-reminder-dot ${item.done ? "done" : ""}`} />
-                    {idx < reminders.length - 1 && <div className="farm-reminder-line" />}
+                    <div
+                      className={`farm-reminder-dot ${item.done ? "done" : ""}`}
+                    />
+                    {idx < reminders.length - 1 && (
+                      <div className="farm-reminder-line" />
+                    )}
                   </div>
 
                   <div className="farm-reminder-body">
                     <div className="farm-reminder-top">
                       <div
                         className="farm-reminder-task"
-                        style={{ textDecoration: item.done ? "line-through" : "none" }}
+                        style={{
+                          textDecoration: item.done ? "line-through" : "none",
+                        }}
                       >
                         {item.task}
                       </div>
@@ -523,7 +576,9 @@ export default function MyFarmScreen() {
                         <button
                           className="farm-reminder-delete"
                           disabled={deleteReminderMutation.isPending}
-                          onClick={() => deleteReminderMutation.mutate(item._id)}
+                          onClick={() =>
+                            deleteReminderMutation.mutate(item._id)
+                          }
                           aria-label="Delete reminder"
                         >
                           <MdDelete size={15} />
@@ -543,11 +598,18 @@ export default function MyFarmScreen() {
                       >
                         {(item.priority || "medium").toUpperCase()}
                       </span>
-                      {item.done && <span className="farm-reminder-completed-badge">✓ Completed</span>}
+                      {item.done && (
+                        <span className="farm-reminder-completed-badge">
+                          ✓ Completed
+                        </span>
+                      )}
                     </div>
 
                     {(item.category || "").trim() && (
-                      <div className="text-xs muted mt-8" style={{ textTransform: "capitalize" }}>
+                      <div
+                        className="text-xs muted mt-8"
+                        style={{ textTransform: "capitalize" }}
+                      >
                         Category: {String(item.category).replace(/-/g, " ")}
                       </div>
                     )}
@@ -579,34 +641,54 @@ export default function MyFarmScreen() {
           >
             <div className="card" style={{ borderRadius: 16 }}>
               <div className="row-between">
-                <div className="text-sm" style={{ fontWeight: 800, color: "#1b5e20" }}>
+                <div
+                  className="text-sm"
+                  style={{ fontWeight: 800, color: "#1b5e20" }}
+                >
                   Herd Overview
                 </div>
                 <div className="chip">{livestockTotal} animals</div>
               </div>
               <div className="text-xs muted mt-8">
-                Average health: {livestockAvgHealth !== null ? `${Math.round(livestockAvgHealth * 100)}%` : "N/A"}
+                Average health:{" "}
+                {livestockAvgHealth !== null
+                  ? `${Math.round(livestockAvgHealth * 100)}%`
+                  : "N/A"}
               </div>
             </div>
 
             <div className="farm-livestock-grid">
               {livestock.map((item) => {
-                const meta = LIVESTOCK_META[item.type] || { emoji: "🐾", tint: "#f5f5f5" };
+                const meta = LIVESTOCK_META[item.type] || {
+                  emoji: "🐾",
+                  tint: "#f5f5f5",
+                };
                 const health = Number(item.healthScore || 0.8);
                 const healthPct = Math.round(health * 100);
 
                 return (
                   <div className="farm-livestock-card" key={item._id}>
-                    <div className="row-between" style={{ alignItems: "flex-start" }}>
-                      <div className="row" style={{ alignItems: "center", gap: 10 }}>
-                        <div className="farm-livestock-icon" style={{ background: meta.tint }}>
+                    <div
+                      className="row-between"
+                      style={{ alignItems: "flex-start" }}
+                    >
+                      <div
+                        className="row"
+                        style={{ alignItems: "center", gap: 10 }}
+                      >
+                        <div
+                          className="farm-livestock-icon"
+                          style={{ background: meta.tint }}
+                        >
                           {meta.emoji}
                         </div>
                         <div>
                           <div className="farm-livestock-title">
                             {item.name || item.type}
                           </div>
-                          <div className="text-xs muted">{item.type} · {item.count} animals</div>
+                          <div className="text-xs muted">
+                            {item.type} · {item.count} animals
+                          </div>
                         </div>
                       </div>
 
@@ -624,13 +706,22 @@ export default function MyFarmScreen() {
                       <div className="farm-health-bar-wrap">
                         <div
                           className="farm-health-bar-fill"
-                          style={{ width: `${healthPct}%`, background: healthColor(health) }}
+                          style={{
+                            width: `${healthPct}%`,
+                            background: healthColor(health),
+                          }}
                         />
                       </div>
-                      <div className="farm-health-pct" style={{ color: healthColor(health) }}>
+                      <div
+                        className="farm-health-pct"
+                        style={{ color: healthColor(health) }}
+                      >
                         {healthPct}%
                       </div>
-                      <span className="farm-health-label" style={{ color: healthColor(health) }}>
+                      <span
+                        className="farm-health-label"
+                        style={{ color: healthColor(health) }}
+                      >
                         {healthLabel(health)}
                       </span>
                     </div>
@@ -644,7 +735,9 @@ export default function MyFarmScreen() {
                       )}
                       <div className="farm-detail-row">
                         <MdAccessTime size={13} color="#2e7d32" />
-                        <span>Feed every {item.feedIntervalHours || 12} hours</span>
+                        <span>
+                          Feed every {item.feedIntervalHours || 12} hours
+                        </span>
                       </div>
                       {item.notes && (
                         <div className="farm-detail-row">
@@ -689,7 +782,9 @@ export default function MyFarmScreen() {
 
               {livestockTips.length > 0 && (
                 <div className="farm-livestock-advisory">
-                  <div className="farm-advisory-heading">📋 Daily Livestock Checklist</div>
+                  <div className="farm-advisory-heading">
+                    📋 Daily Livestock Checklist
+                  </div>
                   {livestockTips.map((item) => (
                     <div key={item.title} className="farm-advisory-item">
                       <MdCheckCircle size={14} color="#4caf50" />
@@ -790,13 +885,20 @@ function AddCropModal({ onClose, onAdd }) {
             <span>{meta.emoji}</span>
             <span>Add New Crop</span>
           </div>
-          <button className="farm-modal-close" onClick={onClose} id="modal-close-btn">
+          <button
+            className="farm-modal-close"
+            onClick={onClose}
+            id="modal-close-btn"
+          >
             <MdClose size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="farm-modal-form" id="add-crop-form">
-
+        <form
+          onSubmit={handleSubmit}
+          className="farm-modal-form"
+          id="add-crop-form"
+        >
           {/* Crop name */}
           <div className="farm-field">
             <label className="farm-label">
@@ -828,9 +930,7 @@ function AddCropModal({ onClose, onAdd }) {
 
           {/* Stage selector */}
           <div className="farm-field">
-            <label className="farm-label">
-              🌱 Growth Stage
-            </label>
+            <label className="farm-label">🌱 Growth Stage</label>
             <div className="farm-stage-grid">
               {STAGES.map((s) => {
                 const m = STAGE_META[s];
@@ -841,7 +941,11 @@ function AddCropModal({ onClose, onAdd }) {
                     className={`farm-stage-btn ${stage === s ? "active" : ""}`}
                     style={
                       stage === s
-                        ? { background: m.bg, borderColor: m.color, color: m.color }
+                        ? {
+                            background: m.bg,
+                            borderColor: m.color,
+                            color: m.color,
+                          }
                         : {}
                     }
                     onClick={() => setStage(s)}
@@ -936,7 +1040,8 @@ function AddReminderModal({ onClose, onAdd, quickTemplates = [] }) {
       onAdd();
       onClose();
     } catch (error) {
-      const msg = error?.response?.data?.message || "Could not create reminder.";
+      const msg =
+        error?.response?.data?.message || "Could not create reminder.";
       window.alert(msg);
       setLoading(false);
     }
@@ -950,7 +1055,10 @@ function AddReminderModal({ onClose, onAdd, quickTemplates = [] }) {
   }
 
   return (
-    <div className="farm-modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="farm-modal-backdrop"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="farm-modal">
         <div className="farm-modal-header">
           <div className="farm-modal-title">
@@ -1043,7 +1151,11 @@ function AddReminderModal({ onClose, onAdd, quickTemplates = [] }) {
             </select>
           </div>
 
-          <button type="submit" className="farm-submit-btn" disabled={loading || !task.trim()}>
+          <button
+            type="submit"
+            className="farm-submit-btn"
+            disabled={loading || !task.trim()}
+          >
             {loading ? "Saving reminder…" : "⏰ Save Reminder"}
           </button>
         </form>
@@ -1077,7 +1189,10 @@ function AddLivestockModal({ onClose, onAdd }) {
   const typeMeta = LIVESTOCK_META[type] || { emoji: "🐾" };
 
   return (
-    <div className="farm-modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="farm-modal-backdrop"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="farm-modal">
         <div className="farm-modal-header">
           <div className="farm-modal-title">
@@ -1095,7 +1210,11 @@ function AddLivestockModal({ onClose, onAdd }) {
               <label className="farm-label">
                 <MdPets size={14} /> Type
               </label>
-              <select className="farm-input" value={type} onChange={(e) => setType(e.target.value)}>
+              <select
+                className="farm-input"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+              >
                 {LIVESTOCK_TYPES.map((item) => (
                   <option key={item} value={item}>
                     {LIVESTOCK_META[item].emoji} {item}
