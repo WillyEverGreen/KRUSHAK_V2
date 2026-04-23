@@ -9,10 +9,7 @@ import {
   MdTune,
   MdWaterDrop,
 } from "react-icons/md";
-import {
-  fetchFarmData,
-  fetchRecentDiagnoses,
-} from "../services/api";
+import { fetchFarmData, fetchRecentDiagnoses } from "../services/api";
 
 const fallbackCareGuide = {
   water: "Water every 2-3 days, keep soil moist but not waterlogged.",
@@ -27,8 +24,10 @@ const STATIC_IRRIGATION_GUIDE = {
     "This is a standard irrigation template for daily farm operations. Use this as baseline guidance and adjust only after field moisture checks.",
   today:
     "Maintain your planned irrigation cycle and do a quick morning soil-moisture check before opening full flow.",
-  timing: "Best window: 5:30 AM to 8:00 AM. Use evening cycle only when needed.",
-  frequency: "Irrigate every 2-3 days for most field crops under normal conditions.",
+  timing:
+    "Best window: 5:30 AM to 8:00 AM. Use evening cycle only when needed.",
+  frequency:
+    "Irrigate every 2-3 days for most field crops under normal conditions.",
   waterDepth: "Apply about 18-25 mm water per cycle for established crops.",
   method:
     "Prefer root-zone irrigation (drip or controlled furrow) to reduce evaporation and foliage disease risk.",
@@ -130,7 +129,10 @@ export default function CareGuidesScreen() {
                 ? `${activeCrop.name} (static template)`
                 : "General static template"}
             </div>
-            <div className="text-sm mt-12" style={{ color: "#33513a", lineHeight: 1.45 }}>
+            <div
+              className="text-sm mt-12"
+              style={{ color: "#33513a", lineHeight: 1.45 }}
+            >
               {STATIC_IRRIGATION_GUIDE.intro}
             </div>
 
@@ -194,7 +196,10 @@ export default function CareGuidesScreen() {
                     color="#43a047"
                     style={{ marginTop: 2, flexShrink: 0 }}
                   />
-                  <div className="text-xs" style={{ color: "#33513a", lineHeight: 1.45 }}>
+                  <div
+                    className="text-xs"
+                    style={{ color: "#33513a", lineHeight: 1.45 }}
+                  >
                     {item}
                   </div>
                 </div>
@@ -265,10 +270,7 @@ export default function CareGuidesScreen() {
 
 function GuideLine({ icon: Icon, label, text }) {
   return (
-    <div
-      className="row mt-12"
-      style={{ alignItems: "flex-start", gap: 10 }}
-    >
+    <div className="row mt-12" style={{ alignItems: "flex-start", gap: 10 }}>
       <div
         style={{
           width: 24,
