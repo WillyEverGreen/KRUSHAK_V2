@@ -13,7 +13,7 @@
     <img src="https://img.shields.io/badge/Node.js-Express-339933?logo=nodedotjs&logoColor=white&style=flat-square" />
     <img src="https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white&style=flat-square" />
     <img src="https://img.shields.io/badge/PWA-Ready-5A0FC8?logo=pwa&logoColor=white&style=flat-square" />
-    <img src="https://img.shields.io/badge/Deployed-Vercel-000000?logo=vercel&logoColor=white&style=flat-square" />
+    <img src="https://img.shields.io/badge/Deployed-Render-46E3B7?logo=render&logoColor=white&style=flat-square" />
     <img src="https://img.shields.io/badge/AI-Gemini-4285F4?logo=google&logoColor=white&style=flat-square" />
   </p>
 </div>
@@ -105,7 +105,7 @@ KRUSHAK MAIN/                    ← Root (monorepo)
 │       ├── routes/              ← authRoutes.js, appRoutes.js
 │       └── services/            ← External API adapters
 ├── docs/                        ← Architecture notes, logo
-├── vercel.json                  ← Vercel deployment config
+├── render.yaml                  ← Render.com Blueprint (backend + frontend)
 └── package.json                 ← Root monorepo scripts
 ```
 
@@ -231,45 +231,61 @@ npm run dev
 
 ---
 
-## 🚀 Deploying to Vercel
+## 🚀 Deploying to Render
 
-Krushak is configured for **Vercel serverless deployment** where both the static React build and the Node API are served from the same domain.
+Krushak uses a `render.yaml` **Blueprint** that deploys both services from one repo:
+- **`krushak-server`** → Render Web Service (Node.js, always-on)
+- **`krushak-client`** → Render Static Site (React/Vite PWA)
 
 ### Step 1 — Push to GitHub
 
 ```bash
 git add .
-git commit -m "chore: prepare for Vercel deployment"
+git commit -m "chore: prepare for Render deployment"
 git push origin main
 ```
 
-### Step 2 — Import on Vercel
+### Step 2 — Create Blueprint on Render
 
-1. Go to [vercel.com](https://vercel.com) → **Add New Project**
-2. Import your GitHub repository
-3. Vercel will auto-detect `vercel.json` — **no framework override needed**
+1. Go to [dashboard.render.com](https://dashboard.render.com) → **New → Blueprint**
+2. Connect your GitHub repository
+3. Render auto-detects `render.yaml` and creates both services
 
-### Step 3 — Set Environment Variables
+### Step 3 — Set Secret Environment Variables
 
-In your Vercel project → **Settings → Environment Variables**, add:
+After the first deploy, open each service in the Render dashboard → **Environment** tab and add:
+
+#### `krushak-server` — Backend
 
 | Variable | Value |
 |---|---|
-| `NODE_ENV` | `production` |
 | `MONGO_URI` | Your Atlas connection string |
 | `JWT_SECRET` | Long random secret (32+ chars) |
-| `CLIENT_ORIGIN` | `https://your-app.vercel.app` |
+| `CLIENT_ORIGIN` | `https://krushak-client.onrender.com` |
 | `GEMINI_API_KEY` | Your Gemini key |
 | `GNEWS_API_KEY` | Your GNews key |
 | `NEWSDATA_API_KEY` | Your NewsData key |
+| `MANDI_API_KEY` | Your data.gov.in key |
 
-> **MongoDB Atlas**: Make sure to whitelist `0.0.0.0/0` in Atlas Network Access so Vercel's dynamic IPs can connect.
+#### `krushak-client` — Frontend
 
-### Step 4 — Deploy
+| Variable | Value |
+|---|---|
+| `VITE_API_BASE_URL` | `https://krushak-server.onrender.com/api` |
 
-Click **Deploy**. Vercel will:
-1. Run `cd client && npm install && npm run build` → serves the React PWA
-2. Expose `server/src/index.js` as a serverless function at `/api/*`
+> **MongoDB Atlas**: Whitelist `0.0.0.0/0` in Atlas **Network Access** so Render's IPs can connect.
+
+### Step 4 — Trigger Redeploy
+
+After setting env vars, click **Manual Deploy → Deploy latest commit** on both services.
+
+Verify the backend is live:
+```bash
+curl https://krushak-server.onrender.com/health
+# → {"status":"ok","service":"krushak-pwa-server"}
+```
+
+> **Free Tier Note**: Render free Web Services spin down after 15 min of inactivity. The first request after idle takes ~30 s. Upgrade to a paid plan for always-on performance. Static Sites are always free and never spin down.
 
 ---
 
@@ -298,11 +314,11 @@ Krushak supports 8 Indian languages via the in-app language picker:
 |---|---|
 | **WP1** Depth of Knowledge | MERN stack, REST API design, JWT auth, Mongoose ODM, Zod schema validation |
 | **WP2** Conflicting Requirements | Performance vs. security (rate limiting, helmet), scalability vs. cost (free tier APIs), real-time vs. offline (PWA Workbox) |
-| **WP3** Depth of Analysis | NoSQL schema design trade-offs, dual-API deduplication strategy, Vercel serverless vs. traditional server deployment |
+| **WP3** Depth of Analysis | NoSQL schema design trade-offs, dual-API deduplication strategy, Render always-on vs. serverless deployment models |
 | **WP4** Familiarity of Issues | Gemini AI integration, mandi price scraping, Workbox offline caching, geolocation-based content |
 | **WP5** Applicable Codes | REST conventions, JWT best practices, environment-based config, semantic HTML, PWA manifest spec |
 | **WP6** Stakeholder Involvement | Farmers (primary users), admins (dashboard), external data providers (APIs), offline-first rural users |
-| **WP7** Interdependence | Frontend ↔ Backend ↔ MongoDB ↔ Gemini API ↔ Weather/Market/News APIs ↔ Vercel CDN |
+| **WP7** Interdependence | Frontend ↔ Backend ↔ MongoDB ↔ Gemini API ↔ Weather/Market/News APIs ↔ Render CDN |
 
 ---
 

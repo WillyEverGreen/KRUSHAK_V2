@@ -21,7 +21,8 @@ const limiter = rateLimit({
 app.use(helmet());
 app.use(limiter);
 
-// Support comma-separated origins and same-domain Vercel deployments
+// Support comma-separated origins for cross-origin Render deployments
+// Set CLIENT_ORIGIN=https://krushak-client.onrender.com in the Render dashboard
 const allowedOrigins = (env.CLIENT_ORIGIN || "")
   .split(",")
   .map((o) => o.trim())
@@ -30,7 +31,8 @@ const allowedOrigins = (env.CLIENT_ORIGIN || "")
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow same-domain (Vercel) or no-origin (server-to-server / health checks)
+      // Allow no-origin requests (server-to-server / health checks)
+      // and any explicitly whitelisted origins
       if (!origin || allowedOrigins.includes(origin) || allowedOrigins.length === 0) {
         return callback(null, true);
       }
@@ -40,28 +42,11 @@ app.use(
   }),
 );
 app.use(express.json({ limit: "8mb" }));
-app.use(morgan("dev"));
-
+// Use combined log format in production for structured access logs
+app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
 
 app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok", service: "krushak-pwa-server" });
-});
-
-/* ── Vercel Serverless DB Connection ── */
-let isDbConnected = false;
-app.use(async (req, res, next) => {
-  if (!isDbConnected && env.MONGO_URI) {
-    try {
-      await connectDatabase(env.MONGO_URI);
-      isDbConnected = true;
-      // eslint-disable-next-line no-console
-      console.log("Database connected (Serverless mode)");
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error("Database connection failed:", error.message);
-    }
-  }
-  next();
 });
 
 app.use("/api/auth", authRoutes);
@@ -70,25 +55,24 @@ app.use("/api", appRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-/* ── Local Development Server ── */
-if (process.env.NODE_ENV !== "production" || process.env.RUN_LOCAL) {
-  const PORT = env.PORT || 5000;
-  app.listen(PORT, async () => {
-    // eslint-disable-next-line no-console
-    console.log(`Server running locally on port ${PORT}`);
-    if (!isDbConnected && env.MONGO_URI) {
-      try {
-        await connectDatabase(env.MONGO_URI);
-        isDbConnected = true;
-        // eslint-disable-next-line no-console
-        console.log("Database connected locally");
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error("Database connection failed locally:", error.message);
-      }
-    }
-  });
-}
+/* ── Server Startup (Render always-on Web Service) ── */
+const PORT = env.PORT || 5000;
 
-/* ── Export for Vercel Serverless ── */
+app.listen(PORT, async () => {
+  // eslint-disable-next-line no-console
+  console.log(`🚀 Server running on port ${PORT} [${env.NODE_ENV}]`);
+  if (env.MONGO_URI) {
+    try {
+      await connectDatabase(env.MONGO_URI);
+      // eslint-disable-next-line no-console
+      console.log("✅ MongoDB connected");
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("❌ MongoDB connection failed:", error.message);
+      process.exit(1); // Fail fast — Render will restart the service
+    }
+  }
+});
+
+// Export for testing / future use
 export default app;
