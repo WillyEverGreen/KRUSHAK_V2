@@ -1,11 +1,11 @@
 # Krushak V2 Product And Engineering Research
 
 Date: 2026-04-22
-Scope: Full research for an app serving both farmers and household plant users, with zero mock/dummy runtime data.
+Scope: Full research for a web application serving both farmers and household plant users, with zero mock/dummy runtime data.
 
 ## 1) Product Direction
 
-Build one app with two experiences from the same platform:
+Build one web platform with two experiences from the same codebase:
 
 - Farmer mode: field crops, mandi decisions, village advisories, disease risk, irrigation planning.
 - Home plant mode: indoor/outdoor pots, watering schedules, pet safety, growth tracking.
@@ -13,7 +13,7 @@ Build one app with two experiences from the same platform:
 Core thesis:
 
 - People do not need "more features"; they need "daily confidence".
-- The app should answer, each day: what to do now, why, and what happens if delayed.
+- The platform should answer, each day: what to do now, why, and what happens if delayed.
 
 North-star outcomes:
 
@@ -52,7 +52,7 @@ Pain points:
 - Conflicting internet advice.
 - No single dashboard for multiple pots/plants.
 
-## 3) What You Should Put In The App (Recommended Scope)
+## 3) What You Should Put In The Web Application (Recommended Scope)
 
 ### Tier 1: Must-have (launch)
 
@@ -476,4 +476,4 @@ Do not add many new screens immediately.
 
 First, convert existing screens into reliable dynamic modules with source-aware data and trustworthy state handling. Once that foundation is stable, then add advanced intelligence (satellite, sensors, marketplace expansion).
 
-This gives you a production-grade app that is useful for both farmers and household plant users without relying on mock or dummy runtime data.
+This gives you a production-grade web application that is useful for both farmers and household plant users without relying on mock or dummy runtime data.
