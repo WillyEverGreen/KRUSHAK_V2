@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const baseURL =
-  import.meta.env.VITE_API_BASE_URL || 
+  import.meta.env.VITE_API_BASE_URL ||
   (import.meta.env.PROD ? "/api" : "http://localhost:5000/api");
 
 export const http = axios.create({
@@ -23,15 +23,15 @@ http.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Clear stale credentials but only if it's NOT the auth endpoints
-      // (so login/register errors still surface normally)
       const url = error.config?.url || "";
-      const isAuthEndpoint = url.includes("/auth/login") || url.includes("/auth/register");
+      const isAuthEndpoint =
+        url.includes("/auth/login") || url.includes("/auth/register");
       if (!isAuthEndpoint) {
+        // Clear stale credentials
         window.localStorage.removeItem("krushak_token");
         window.localStorage.removeItem("krushak_user");
-        // Let the component handle re-auth; we don't force redirect here
-        // so unauthenticated requests (demo mode) still work smoothly
+        // Reload so Zustand re-initialises from empty localStorage → /login
+        window.location.href = "/login";
       }
     }
     return Promise.reject(error);

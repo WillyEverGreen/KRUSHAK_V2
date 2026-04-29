@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import MobileShell from "../components/MobileShell";
 import SubpageLayout from "../components/SubpageLayout";
 import HomeScreen from "../screens/HomeScreen";
@@ -12,6 +12,17 @@ import ChatScreen from "../screens/ChatScreen";
 import CareGuidesScreen from "../screens/CareGuidesScreen";
 import FaqScreen from "../screens/FaqScreen";
 import AuthScreen from "../screens/AuthScreen";
+import { useSessionStore } from "./store";
+
+/* ── Auth guard: redirects to /login if no token ────────────── */
+function RequireAuth({ children }) {
+  const token = useSessionStore((s) => s.token);
+  const location = useLocation();
+  if (!token) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  return children;
+}
 
 export default function App() {
   return (
@@ -20,8 +31,14 @@ export default function App() {
         {/* ── Full-screen auth (no bottom nav) ── */}
         <Route path="/login" element={<AuthScreen />} />
 
-        {/* ── Main app shell ── */}
-        <Route element={<MobileShell />}>
+        {/* ── Main app shell (auth-protected) ── */}
+        <Route
+          element={
+            <RequireAuth>
+              <MobileShell />
+            </RequireAuth>
+          }
+        >
           <Route path="/home" element={<HomeScreen />} />
           <Route path="/diagnose" element={<DiagnoseScreen />} />
           <Route

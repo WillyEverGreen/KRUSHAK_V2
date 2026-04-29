@@ -1,16 +1,12 @@
 import { useState } from "react";
 import {
-  MdEco,
   MdEmail,
   MdLock,
   MdPerson,
   MdVisibility,
   MdVisibilityOff,
-  MdArrowBack,
-  MdLocationCity,
-  MdHome,
 } from "react-icons/md";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { login, register } from "../services/api";
 import { useSessionStore } from "../app/store";
 
@@ -57,11 +53,6 @@ export default function AuthScreen() {
         {tab === "login" ? <LoginForm /> : <RegisterForm onSuccess={() => setTab("login")} />}
       </div>
 
-      {/* Skip login */}
-      <div className="auth-skip">
-        <span>Just exploring? </span>
-        <a href="/home" className="auth-skip-link">Continue without login →</a>
-      </div>
     </div>
   );
 }
@@ -69,6 +60,7 @@ export default function AuthScreen() {
 /* ─── Login Form ───────────────────────────────────────────── */
 function LoginForm() {
   const navigate = useNavigate();
+  const location = useLocation();
   const setSession = useSessionStore((s) => s.setSession);
 
   const [email, setEmail]       = useState("");
@@ -84,7 +76,9 @@ function LoginForm() {
     try {
       const data = await login({ email: email.trim(), password });
       setSession({ token: data.token, user: data.user });
-      navigate("/home", { replace: true });
+      // Navigate back to the page they tried to access, or /home
+      const from = location.state?.from?.pathname || "/home";
+      navigate(from, { replace: true });
     } catch (err) {
       setError(err?.response?.data?.message || "Login failed. Check your credentials.");
     } finally {
@@ -157,6 +151,9 @@ function LoginForm() {
 
 /* ─── Register Form ────────────────────────────────────────── */
 function RegisterForm({ onSuccess }) {
+  const navigate = useNavigate();
+  const setSession = useSessionStore((s) => s.setSession);
+
   const [fullName, setFullName]   = useState("");
   const [email, setEmail]         = useState("");
   const [password, setPassword]   = useState("");
@@ -179,13 +176,20 @@ function RegisterForm({ onSuccess }) {
     }
     setLoading(true);
     try {
-      await register({
+      // Server returns token + user on register — auto-login immediately
+      const data = await register({
         fullName: fullName.trim(),
         email: email.trim(),
         password,
       });
       setSuccess(true);
-      setTimeout(() => onSuccess(), 1800);
+      if (data?.token) {
+        setSession({ token: data.token, user: data.user });
+        setTimeout(() => navigate("/home", { replace: true }), 1200);
+      } else {
+        // Fallback: redirect to login tab
+        setTimeout(() => onSuccess(), 1200);
+      }
     } catch (err) {
       setError(err?.response?.data?.message || "Registration failed. Please try again.");
     } finally {

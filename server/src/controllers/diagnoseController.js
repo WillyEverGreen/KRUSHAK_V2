@@ -3,6 +3,8 @@ import { z } from "zod";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { DiagnosisCache } from "../models/DiagnosisCache.js";
 import { ScanRecord } from "../models/ScanRecord.js";
+import { Crop } from "../models/Crop.js";
+import { Livestock } from "../models/Livestock.js";
 import { env } from "../config/env.js";
 
 const scanInputSchema = z.object({
@@ -129,6 +131,7 @@ function normalizeAiOutput(rawValue) {
 
   const parsed = aiOutputSchema.safeParse(normalized);
   if (!parsed.success) {
+    console.error("AI Output validation failed:", parsed.error, "Normalized data:", normalized);
     return fallbackUnknownResponse;
   }
 
@@ -178,7 +181,13 @@ async function persistScanHistory(user, analysis) {
 
 function isModelNotFoundError(error) {
   const message = String(error?.message || "").toLowerCase();
-  return message.includes("not found") && message.includes("models/");
+  const status = error?.status ?? error?.response?.status ?? 0;
+  // 404: model not found; 400: invalid model name (INVALID_ARGUMENT from Gemini API)
+  return (
+    (message.includes("not found") && message.includes("models/")) ||
+    message.includes("invalid_argument") ||
+    status === 404
+  );
 }
 
 function isQuotaOrRateLimitError(error) {
@@ -205,12 +214,15 @@ function normalizeModelName(modelName) {
 }
 
 async function generateContentWithModelFallback(geminiClient, payload, prompt) {
+  // Ordered by reliability for vision tasks — confirmed working models first.
   const modelCandidates = [
+    "gemini-2.0-flash",
+    "gemini-2.5-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
     normalizeModelName(env.GEMINI_MODEL),
     "gemini-2.5-flash-image",
     "gemini-3.1-flash-image-preview",
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
     "gemini-flash-lite-latest",
     "gemini-flash-latest",
     "gemini-pro-latest",
@@ -225,7 +237,8 @@ async function generateContentWithModelFallback(geminiClient, payload, prompt) {
 
     try {
       const model = geminiClient.getGenerativeModel({ model: modelName });
-      return await model.generateContent([
+      console.log(`[Gemini] Trying model: ${modelName}`);
+      const result = await model.generateContent([
         {
           inlineData: {
             data: stripDataUrlPrefix(payload.imageBase64),
@@ -234,9 +247,12 @@ async function generateContentWithModelFallback(geminiClient, payload, prompt) {
         },
         { text: prompt },
       ]);
+      console.log(`[Gemini] Success with model: ${modelName}`);
+      return result;
     } catch (error) {
       lastError = error;
       if (isModelNotFoundError(error) || isQuotaOrRateLimitError(error)) {
+        console.warn(`[Gemini] Model ${modelName} failed (${error?.message?.slice(0, 80)}), trying next...`);
         continue;
       }
       throw error;
@@ -633,24 +649,102 @@ export async function getDiseaseCatalog(req, res) {
 /** Current-season pest advisory */
 export async function getDiseaseAdvisory(req, res) {
   const season = currentSeason();
-  const seasonal = commonDiseases.filter(
-    (d) => d.season === season && d.severity === "High",
-  );
+  
+  // Base default fallback if not logged in or if Gemini fails
+  const fallbackAlerts = commonDiseases
+    .filter((d) => d.season === season && d.severity === "High")
+    .slice(0, 6)
+    .map((d) => ({
+      crop: d.crop,
+      disease: d.name,
+      severity: d.severity,
+      symptom: d.symptom,
+      season,
+    }));
 
-  const alerts = seasonal.slice(0, 6).map((d) => ({
-    crop: d.crop,
-    disease: d.name,
-    severity: d.severity,
-    symptom: d.symptom,
-    season,
-  }));
+  let userCrops = [];
+  let userLivestock = [];
 
-  return res.status(200).json({
-    season,
-    alerts,
-    generatedAt: new Date().toISOString(),
-    message: `${season} season advisory — watch for these high-severity threats`,
-  });
+  if (req.user?.sub) {
+    try {
+      const [crops, livestock] = await Promise.all([
+        Crop.find({ userId: req.user.sub }).lean(),
+        Livestock.find({ userId: req.user.sub }).lean()
+      ]);
+      userCrops = crops.map(c => c.name);
+      userLivestock = livestock.map(l => l.species || l.type);
+    } catch (err) {
+      console.warn("Failed to fetch user farm data for advisory:", err);
+    }
+  }
+
+  // If user has no farm data, just return the default seasonal
+  if (userCrops.length === 0 && userLivestock.length === 0) {
+    return res.status(200).json({
+      season,
+      alerts: fallbackAlerts,
+      generatedAt: new Date().toISOString(),
+      message: `${season} season advisory — watch for these high-severity threats`,
+    });
+  }
+
+  // Use Gemini to generate custom advisory
+  try {
+    const geminiClient = getGeminiClient();
+    if (!geminiClient) throw new Error("Gemini not configured");
+
+    const modelName = normalizeModelName(env.GEMINI_MODEL) || "gemini-2.0-flash";
+    const model = geminiClient.getGenerativeModel({ model: modelName });
+    
+    const prompt = `You are an expert agricultural and veterinary advisor. 
+The current season is ${season}.
+The farmer has the following crops: ${userCrops.join(', ') || 'None'}.
+The farmer has the following livestock: ${userLivestock.join(', ') || 'None'}.
+
+Generate exactly 3 specific, high-severity disease or pest threats they need to watch out for this ${season} season, specifically targeting the crops or livestock they own. If they only have livestock, focus on livestock diseases. Make sure the response is highly relevant to their actual farm profile.
+
+Return ONLY valid JSON in this format:
+[
+  {
+    "crop": "Crop or Livestock Name",
+    "disease": "Disease or Threat Name",
+    "severity": "High",
+    "symptom": "Brief description of symptoms to watch for (1-2 sentences)"
+  }
+]`;
+
+    console.log(`[Gemini] Generating personalized advisory for user: ${req.user.sub}`);
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    const jsonStr = getJsonCandidate(text);
+    const parsed = JSON.parse(jsonStr);
+    
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      throw new Error("Invalid Gemini response for advisory");
+    }
+
+    return res.status(200).json({
+      season,
+      alerts: parsed.map(a => ({
+        crop: a.crop,
+        disease: a.disease,
+        severity: "High",
+        symptom: a.symptom,
+        season
+      })),
+      generatedAt: new Date().toISOString(),
+      message: `Personalized ${season} season advisory based on your farm`,
+    });
+  } catch (err) {
+    console.error("Gemini advisory failed:", err);
+    // Fallback to static
+    return res.status(200).json({
+      season,
+      alerts: fallbackAlerts,
+      generatedAt: new Date().toISOString(),
+      message: `${season} season advisory — watch for these high-severity threats`,
+    });
+  }
 }
 
 export async function getRecentDiagnoses(req, res, next) {
@@ -676,6 +770,7 @@ export async function analyzePlantImage(req, res, next) {
     }
 
     const payload = parsedPayload.data;
+    console.log("Analyze requested. mimeType:", payload.mimeType, "base64 starts with:", payload.imageBase64.substring(0, 50));
     const imageHash = buildImageHash(payload.imageBase64, payload.mimeType);
 
     let cachedRecord = null;
@@ -686,6 +781,7 @@ export async function analyzePlantImage(req, res, next) {
     }
 
     if (cachedRecord?.analysis) {
+      console.log(`[DiagnosisCache] Cache HIT for hash: ${imageHash.slice(0, 12)}...`);
       await persistScanHistory(req.user, cachedRecord.analysis);
 
       DiagnosisCache.updateOne(
@@ -769,8 +865,9 @@ Return ONLY valid JSON with fields: crop, disease, confidence, reasoning, sympto
         prompt,
       );
     } catch (modelError) {
-      return res.status(200).json({
-        analysis: fallbackUnknownResponse,
+      console.error("Gemini first attempt failed:", modelError);
+      return res.status(502).json({
+        message: modelError.message || "Failed to analyze image with AI.",
       });
     }
 
@@ -807,25 +904,28 @@ Return ONLY valid JSON with fields: crop, disease, confidence, reasoning, sympto
       }
     }
 
-    try {
-      await DiagnosisCache.findOneAndUpdate(
-        { imageHash },
-        {
-          $set: {
-            mimeType: payload.mimeType,
-            analysis,
-            lastAccessedAt: new Date(),
+    // Only cache meaningful results — avoid polluting cache with Unknown/fallback responses.
+    if (!isUnknownAnalysis(analysis)) {
+      try {
+        await DiagnosisCache.findOneAndUpdate(
+          { imageHash },
+          {
+            $set: {
+              mimeType: payload.mimeType,
+              analysis,
+              lastAccessedAt: new Date(),
+            },
+            $inc: { hitCount: 1 },
           },
-          $inc: { hitCount: 1 },
-        },
-        {
-          upsert: true,
-          new: true,
-          setDefaultsOnInsert: true,
-        },
-      );
-    } catch {
-      // Continue even if cache persistence fails.
+          {
+            upsert: true,
+            new: true,
+            setDefaultsOnInsert: true,
+          },
+        );
+      } catch {
+        // Continue even if cache persistence fails.
+      }
     }
 
     await persistScanHistory(req.user, analysis);

@@ -1,0 +1,57 @@
+{
+  "expo": {
+    "name": "Krushak",
+    "slug": "krushak",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f1f8e9"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#f1f8e9"
+      },
+      "package": "com.krushak.app",
+      "softwareKeyboardLayoutMode": "pan",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "INTERNET",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.krushak.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to capture crop images for disease diagnosis",
+        "NSPhotoLibraryUsageDescription": "Used to select crop images for disease diagnosis",
+        "NSLocationWhenInUseUsageDescription": "Used for local weather and market prices"
+      }
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-image-picker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Used to capture crop images for disease diagnosis"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Used for local weather and market prices"
+        }
+      ]
+    ]
+  }
+}

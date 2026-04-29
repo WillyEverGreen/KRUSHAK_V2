@@ -41,7 +41,7 @@ router.get("/home", optionalAuth, getHomeData);
 
 /* ── Diagnose ─────────────────────────────────────────────────────────── */
 router.get("/diagnose/catalog",  getDiseaseCatalog);
-router.get("/diagnose/advisory", getDiseaseAdvisory);
+router.get("/diagnose/advisory", optionalAuth, getDiseaseAdvisory);
 router.post("/diagnose/analyze", optionalAuth, analyzePlantImage);
 router.get("/diagnose/recent",   optionalAuth, getRecentDiagnoses);
 router.post("/diagnose/records", requireAuth, createScanRecord);

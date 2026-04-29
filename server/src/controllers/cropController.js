@@ -72,7 +72,10 @@ export async function getCrops(req, res, next) {
       });
     }
 
-    const crops = await Crop.find({ userId: req.user.sub }).sort({ createdAt: -1 });
+    // Delta sync: if ?since=<ISO timestamp> is provided, return only records updated after that point
+    const sinceRaw = req.query.since;
+    const sinceFilter = sinceRaw ? { updatedAt: { $gt: new Date(sinceRaw) } } : {};
+    const crops = await Crop.find({ userId: req.user.sub, ...sinceFilter }).sort({ createdAt: -1 });
 
     const enriched = crops.map((crop) => ({
       _id:            crop._id,
