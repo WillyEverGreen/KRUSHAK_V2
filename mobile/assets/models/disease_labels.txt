@@ -1,0 +1,36 @@
+0,Tomato Bacterial Spot
+1,Tomato Early Blight
+2,Tomato Late Blight
+3,Tomato Leaf Mold
+4,Tomato Septoria Leaf Spot
+5,Tomato Spider Mites
+6,Tomato Target Spot
+7,Tomato Mosaic Virus
+8,Tomato Yellow Leaf Curl Virus
+9,Pepper Bacterial Spot
+10,Pepper Bell Healthy
+11,Potato Early Blight
+12,Potato Late Blight
+13,Corn Cercospora Leaf Spot
+14,Corn Common Rust
+15,Corn Northern Leaf Blight
+16,Corn Healthy
+17,Apple Apple Scab
+18,Apple Black Rot
+19,Apple Cedar Rust
+20,Apple Healthy
+21,Blueberry Healthy
+22,Cherry Powdery Mildew
+23,Cherry Healthy
+24,Grape Black Rot
+25,Grape Esca (Black Measles)
+26,Grape Leaf Blight
+27,Grape Healthy
+28,Orange Haunglongbing (Citrus Greening)
+29,Peach Bacterial Spot
+30,Peach Healthy
+31,Strawberry Leaf Scorch
+32,Strawberry Healthy
+33,Squash Powdery Mildew
+34,Raspberry Healthy
+35,Soybean Healthy

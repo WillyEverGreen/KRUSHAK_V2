@@ -108,7 +108,7 @@ export default function HomeScreen() {
   ];
 
   return (
-    <DataState loading={isLoading} error={error} empty={!data}>
+    <DataState loading={isLoading || !geoReady} error={error} empty={!data}>
       {data && (
         <div>
           <div className="hero-card">
