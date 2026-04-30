@@ -646,21 +646,22 @@ export async function getDiseaseCatalog(req, res) {
   });
 }
 
+/** Per-livestock-type static health advisories (summer-focused) */
+const LIVESTOCK_ADVISORIES = {
+  Cow:     { disease: "Heat Stress & Foot-and-Mouth", symptom: "Excessive panting, drooling, reduced milk yield in summer heat. Check hooves for blisters and sores — FMD spreads rapidly in hot weather." },
+  Buffalo: { disease: "Haemorrhagic Septicaemia", symptom: "High fever, swelling under jaw and neck, sudden death risk in monsoon onset. Vaccinate before summer ends." },
+  Goat:    { disease: "PPR (Peste des Petits Ruminants)", symptom: "High fever, nasal discharge, mouth ulcers and diarrhoea. Highly contagious — isolate any sick animal immediately." },
+  Sheep:   { disease: "Sheep Pox & Bluetongue", symptom: "Skin nodules, fever and respiratory distress. Bluetongue spreads via midges during warm months; reduce standing water." },
+  Chicken: { disease: "Newcastle Disease", symptom: "Gasping, twisted neck, greenish diarrhoea, sudden drop in egg production. Keep poultry house cool and well-ventilated in summer." },
+  Duck:    { disease: "Duck Viral Enteritis", symptom: "Bloody diarrhoea, nasal discharge, weakness. Can cause mass mortality — ensure clean water sources at all times." },
+  Pig:     { disease: "Swine Fever (Classical)", symptom: "High fever, reddening of skin, loss of appetite, huddling. Fatal if untreated — vaccinate before rainy season." },
+  Horse:   { disease: "Equine Influenza & Laminitis", symptom: "Cough, nasal discharge, fever. Laminitis worsens in summer with lush pasture — monitor hoof temperature daily." },
+  Rabbit:  { disease: "Rabbit Haemorrhagic Disease", symptom: "Sudden death or bloody nasal discharge. Spreads through contact and insects — keep enclosures insect-proof in summer." },
+};
+
 /** Current-season pest advisory */
 export async function getDiseaseAdvisory(req, res) {
   const season = currentSeason();
-  
-  // Base default fallback if not logged in or if Gemini fails
-  const fallbackAlerts = commonDiseases
-    .filter((d) => d.season === season && d.severity === "High")
-    .slice(0, 6)
-    .map((d) => ({
-      crop: d.crop,
-      disease: d.name,
-      severity: d.severity,
-      symptom: d.symptom,
-      season,
-    }));
 
   let userCrops = [];
   let userLivestock = [];
@@ -672,77 +673,162 @@ export async function getDiseaseAdvisory(req, res) {
         Livestock.find({ userId: req.user.sub }).lean()
       ]);
       userCrops = crops.map(c => c.name);
-      userLivestock = livestock.map(l => l.species || l.type);
+      userLivestock = livestock.map(l => l.species || l.type).filter(Boolean);
     } catch (err) {
       console.warn("Failed to fetch user farm data for advisory:", err);
     }
   }
 
-  // If user has no farm data, just return the default seasonal
-  if (userCrops.length === 0 && userLivestock.length === 0) {
+  /** Build a smart static fallback always showing exactly 2 cards:
+   *  - Card 1: user's first crop (or season top disease)
+   *  - Card 2: user's first livestock (or season top disease)
+   */
+  function buildSmartFallback() {
+    const alerts = [];
+
+    // Crop card — pick user crop if available, else generic season crop disease
+    if (userCrops.length > 0) {
+      const cropName = userCrops[0];
+      const cropDisease = commonDiseases.find(
+        d => d.crop.toLowerCase() === cropName.toLowerCase() && d.severity === "High"
+      ) || commonDiseases.find(d => d.crop.toLowerCase() === cropName.toLowerCase())
+        || commonDiseases.filter(d => d.season === season && d.severity === "High")[0];
+
+      if (cropDisease) {
+        alerts.push({ crop: cropDisease.crop, disease: cropDisease.name, severity: "High", symptom: cropDisease.symptom, season });
+      } else {
+        // Generic high severity for the season
+        const generic = commonDiseases.filter(d => d.season === season && d.severity === "High")[0];
+        if (generic) alerts.push({ crop: generic.crop, disease: generic.name, severity: "High", symptom: generic.symptom, season });
+      }
+    } else {
+      const generic = commonDiseases.filter(d => d.season === season && d.severity === "High")[0];
+      if (generic) alerts.push({ crop: generic.crop, disease: generic.name, severity: "High", symptom: generic.symptom, season });
+    }
+
+    // Livestock card — pick user's first animal type
+    if (userLivestock.length > 0) {
+      const lsType = userLivestock[0];
+      const advisory = LIVESTOCK_ADVISORIES[lsType] || LIVESTOCK_ADVISORIES.Cow;
+      alerts.push({
+        crop: lsType,
+        disease: advisory.disease,
+        severity: "High",
+        symptom: advisory.symptom,
+        season
+      });
+    } else {
+      // No livestock — add a second crop disease
+      const second = commonDiseases.filter(d => d.season === season && d.severity === "High")[1];
+      if (second) alerts.push({ crop: second.crop, disease: second.name, severity: "High", symptom: second.symptom, season });
+    }
+
+    return alerts;
+  }
+
+  // If no auth at all, return smart static
+  if (!req.user?.sub) {
     return res.status(200).json({
       season,
-      alerts: fallbackAlerts,
+      alerts: buildSmartFallback(),
       generatedAt: new Date().toISOString(),
       message: `${season} season advisory — watch for these high-severity threats`,
     });
   }
 
-  // Use Gemini to generate custom advisory
+  // If user has no farm data, return smart static
+  if (userCrops.length === 0 && userLivestock.length === 0) {
+    const genericAlerts = commonDiseases
+      .filter(d => d.season === season && d.severity === "High")
+      .slice(0, 2)
+      .map(d => ({ crop: d.crop, disease: d.name, severity: d.severity, symptom: d.symptom, season }));
+    return res.status(200).json({
+      season,
+      alerts: genericAlerts,
+      generatedAt: new Date().toISOString(),
+      message: `${season} season advisory — watch for these high-severity threats`,
+    });
+  }
+
+  // Try Gemini for personalized advisory
   try {
     const geminiClient = getGeminiClient();
     if (!geminiClient) throw new Error("Gemini not configured");
 
     const modelName = normalizeModelName(env.GEMINI_MODEL) || "gemini-2.0-flash";
     const model = geminiClient.getGenerativeModel({ model: modelName });
-    
-    const prompt = `You are an expert agricultural and veterinary advisor. 
-The current season is ${season}.
-The farmer has the following crops: ${userCrops.join(', ') || 'None'}.
-The farmer has the following livestock: ${userLivestock.join(', ') || 'None'}.
 
-Generate exactly 3 specific, high-severity disease or pest threats they need to watch out for this ${season} season, specifically targeting the crops or livestock they own. If they only have livestock, focus on livestock diseases. Make sure the response is highly relevant to their actual farm profile.
+    const hasBoth = userCrops.length > 0 && userLivestock.length > 0;
+    const promptInstructions = hasBoth
+      ? `Generate exactly 2 disease/pest threats. You MUST return one for a CROP they own AND one for a LIVESTOCK animal they own. No exceptions.`
+      : userLivestock.length > 0
+        ? `Generate exactly 2 health threats targeting the livestock they own.`
+        : `Generate exactly 2 disease/pest threats targeting the crops they own.`;
 
-Return ONLY valid JSON in this format:
+    const prompt = `You are an expert agricultural and veterinary advisor.
+Current season: ${season}.
+Farmer's crops: ${userCrops.join(', ') || 'None'}.
+Farmer's livestock: ${userLivestock.join(', ') || 'None'}.
+
+${promptInstructions}
+
+Return ONLY valid JSON array with exactly 2 items:
 [
   {
-    "crop": "Crop or Livestock Name",
-    "disease": "Disease or Threat Name",
+    "crop": "Exact crop or livestock name from the farmer's list",
+    "disease": "Specific disease or threat name",
     "severity": "High",
-    "symptom": "Brief description of symptoms to watch for (1-2 sentences)"
+    "symptom": "1-2 sentence description of visible symptoms to watch for"
   }
 ]`;
 
-    console.log(`[Gemini] Generating personalized advisory for user: ${req.user.sub}`);
+    console.log(`[Gemini] Generating advisory for user: ${req.user.sub} — crops: [${userCrops}], livestock: [${userLivestock}]`);
     const result = await model.generateContent(prompt);
     const text = result.response.text();
     const jsonStr = getJsonCandidate(text);
     const parsed = JSON.parse(jsonStr);
-    
+
     if (!Array.isArray(parsed) || parsed.length === 0) {
       throw new Error("Invalid Gemini response for advisory");
     }
 
+    // Ensure we have both a crop and livestock card when user has both
+    let finalAlerts = parsed.map(a => ({
+      crop: a.crop,
+      disease: a.disease,
+      severity: "High",
+      symptom: a.symptom,
+      season
+    }));
+
+    // If user has livestock but Gemini didn't include a livestock card, inject one
+    if (userLivestock.length > 0) {
+      const hasLsCard = finalAlerts.some(a =>
+        Object.keys(LIVESTOCK_ADVISORIES).map(k => k.toLowerCase()).includes(a.crop?.toLowerCase())
+      );
+      if (!hasLsCard) {
+        const lsType = userLivestock[0];
+        const adv = LIVESTOCK_ADVISORIES[lsType] || LIVESTOCK_ADVISORIES.Cow;
+        finalAlerts = [finalAlerts[0], { crop: lsType, disease: adv.disease, severity: "High", symptom: adv.symptom, season }];
+      }
+    }
+
     return res.status(200).json({
       season,
-      alerts: parsed.map(a => ({
-        crop: a.crop,
-        disease: a.disease,
-        severity: "High",
-        symptom: a.symptom,
-        season
-      })),
+      alerts: finalAlerts.slice(0, 2),
       generatedAt: new Date().toISOString(),
       message: `Personalized ${season} season advisory based on your farm`,
     });
   } catch (err) {
-    console.error("Gemini advisory failed:", err);
-    // Fallback to static
+    console.error("Gemini advisory failed, using smart static fallback:", err?.message?.slice(0, 80));
+    // Always return smart fallback with both crop + livestock if available
     return res.status(200).json({
       season,
-      alerts: fallbackAlerts,
+      alerts: buildSmartFallback(),
       generatedAt: new Date().toISOString(),
-      message: `${season} season advisory — watch for these high-severity threats`,
+      message: userLivestock.length > 0
+        ? `Personalized ${season} advisory for your crops & livestock`
+        : `${season} season advisory — watch for these high-severity threats`,
     });
   }
 }

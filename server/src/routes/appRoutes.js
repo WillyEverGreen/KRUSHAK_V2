@@ -7,6 +7,7 @@ import {
   getDiseaseAdvisory,
   getRecentDiagnoses,
 } from "../controllers/diagnoseController.js";
+import { quickDiagnose } from "../controllers/tfliteController.js";
 import {
   addReminder,
   addLivestock,
@@ -43,6 +44,7 @@ router.get("/home", optionalAuth, getHomeData);
 router.get("/diagnose/catalog",  getDiseaseCatalog);
 router.get("/diagnose/advisory", optionalAuth, getDiseaseAdvisory);
 router.post("/diagnose/analyze", optionalAuth, analyzePlantImage);
+router.post("/diagnose/quick",   optionalAuth, quickDiagnose);  // TFLite on-device-speed scan
 router.get("/diagnose/recent",   optionalAuth, getRecentDiagnoses);
 router.post("/diagnose/records", requireAuth, createScanRecord);
 

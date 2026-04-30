@@ -49,7 +49,7 @@ export default function DiagnoseResultScreen() {
   const navigation = useNavigation();
   const qc = useQueryClient();
 
-  const { analysis = null, imageUri } = route.params || {};
+  const { analysis = null, imageUri, offlineMode = false } = route.params || {};
 
   const analyzeMut = useMutation({
     mutationFn: analyzePlantImage,
@@ -72,7 +72,7 @@ export default function DiagnoseResultScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.8,
       allowsEditing: true,
       aspect: [1, 1],
@@ -98,7 +98,13 @@ export default function DiagnoseResultScreen() {
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Diagnosis Report</Text>
-        {analysis?.confidence && (
+        {offlineMode && (
+          <View style={[styles.confidenceBadge, { backgroundColor: '#1d4ed820', borderColor: '#1d4ed840' }]}>
+            <Ionicons name="flash" size={12} color="#1d4ed8" />
+            <Text style={[styles.confidenceText, { color: '#1d4ed8' }]}>Quick</Text>
+          </View>
+        )}
+        {analysis?.confidence && !offlineMode && (
           <View style={[styles.confidenceBadge, { backgroundColor: `${severityColor(analysis.confidence)}20`, borderColor: `${severityColor(analysis.confidence)}40` }]}>
             <Text style={[styles.confidenceText, { color: severityColor(analysis.confidence) }]}>
               {analysis.confidence}
@@ -137,8 +143,8 @@ export default function DiagnoseResultScreen() {
             {/* Crop + Disease Cards */}
             <CardElevated>
               <View style={styles.analysisHeader}>
-                <Ionicons name="analytics-outline" size={20} color={colors.primaryGreen} />
-                <Text style={styles.cardTitle}>AI Diagnosis Result</Text>
+                <Ionicons name={offlineMode ? 'flash' : 'analytics-outline'} size={20} color={offlineMode ? '#1d4ed8' : colors.primaryGreen} />
+                <Text style={styles.cardTitle}>{offlineMode ? '⚡ Quick Scan Result' : 'AI Diagnosis Result'}</Text>
               </View>
 
               <View style={styles.cropDiseaseGrid}>
@@ -157,6 +163,24 @@ export default function DiagnoseResultScreen() {
                 <View style={styles.reasoningBox}>
                   <Text style={styles.reasoningLabel}>Model Reasoning</Text>
                   <Text style={styles.reasoningText}>{analysis.reasoning}</Text>
+                </View>
+              )}
+
+              {/* Top-3 predictions for Quick Scan */}
+              {offlineMode && analysis.allPredictions?.length > 0 && (
+                <View style={[styles.reasoningBox, { marginTop: 8, backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }]}>
+                  <Text style={[styles.reasoningLabel, { color: '#1d4ed8' }]}>Top Predictions</Text>
+                  {analysis.allPredictions.map((p, i) => (
+                    <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                      <Text style={{ fontSize: 13, color: colors.textGrey, flex: 1 }}>{p.label}</Text>
+                      <View style={{ backgroundColor: '#dbeafe', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#1d4ed8' }}>{p.confidence}%</Text>
+                      </View>
+                    </View>
+                  ))}
+                  {analysis.inferenceMs && (
+                    <Text style={{ fontSize: 10, color: colors.textGrey, marginTop: 6 }}>Inference: {analysis.inferenceMs}ms on-server MobileNetV2</Text>
+                  )}
                 </View>
               )}
             </CardElevated>
@@ -221,6 +245,24 @@ export default function DiagnoseResultScreen() {
             {analyzeMut.isPending ? 'Analyzing…' : 'Scan Again'}
           </Text>
         </TouchableOpacity>
+
+        {/* Ask AI Button — pre-fills ChatScreen with disease context */}
+        {analysis && analysis.crop && analysis.disease && (
+          <TouchableOpacity
+            style={[styles.askAiBtn, { marginTop: 10 }]}
+            onPress={() => {
+              const context = `I have a ${analysis.crop} plant diagnosed with ${analysis.disease}. ` +
+                `Confidence: ${analysis.confidence || 'N/A'}. ` +
+                `Can you explain the symptoms, treatment, and prevention in detail?`;
+              navigation.navigate('Chat', { prefillMessage: context });
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={{ fontSize: 16 }}>🤖</Text>
+            <Text style={styles.askAiBtnText}>Ask AI about this Diagnosis</Text>
+            <Ionicons name="chevron-forward-outline" size={16} color="#6d28d9" />
+          </TouchableOpacity>
+        )}
 
         <View style={{ height: 32 }} />
       </ScrollView>
@@ -288,4 +330,13 @@ const styles = StyleSheet.create({
   },
   primaryBtnDisabled: { opacity: 0.6 },
   primaryBtnText: { color: '#fff', fontWeight: '800', fontSize: typography.md },
+
+  askAiBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, backgroundColor: '#f5f3ff',
+    borderRadius: 14, paddingVertical: 14,
+    borderWidth: 1, borderColor: '#ddd6fe',
+    ...shadows.card,
+  },
+  askAiBtnText: { color: '#6d28d9', fontWeight: '800', fontSize: typography.md, flex: 1, textAlign: 'center' },
 });

@@ -51,6 +51,12 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Used for local weather and market prices"
         }
+      ],
+      [
+        "llama.rn",
+        {
+          "enableOpenCLAndHexagon": true
+        }
       ]
     ]
   }

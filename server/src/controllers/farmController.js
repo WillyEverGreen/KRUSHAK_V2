@@ -115,17 +115,13 @@ function annotateReminders(reminders, weather) {
 
 const reminderInputSchema = z.object({
   task: z.string().min(2),
-  dueAtLabel: z.string().min(2).default("Today 6:00 PM"),
+  dueAtLabel: z.string().optional().default("Today 6:00 PM"),
   category: z
-    .enum([
-      "general",
-      "crop",
-      "irrigation",
-      "spray",
-      "harvest",
-      "livestock-feed",
-      "livestock-health",
-    ])
+    .string()
+    .transform((v) => {
+      const valid = ["general","crop","irrigation","spray","harvest","livestock-feed","livestock-health"];
+      return valid.includes(v) ? v : "general";
+    })
     .default("general"),
   priority: z.enum(["low", "medium", "high"]).default("medium"),
   targetType: z.string().optional().default(""),

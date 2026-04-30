@@ -80,7 +80,8 @@ function QuickToolCard({ tool, delay }) {
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const [coords, setCoords] = useState(undefined);
+  const [coords, setCoords] = useState(null);  // start as null (don't wait for GPS)
+  const [geoReady, setGeoReady] = useState(false);
   const heroAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -88,22 +89,24 @@ export default function HomeScreen() {
       toValue: 1, duration: 600, useNativeDriver: true,
     }).start();
 
+    // Set geoReady after 1.5s max — don't block the dashboard for GPS
+    const timeout = setTimeout(() => setGeoReady(true), 1500);
+
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') { setCoords(null); return; }
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-    })().catch(() => setCoords(null));
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+        }
+      } catch (_) {}
+      clearTimeout(timeout);
+      setGeoReady(true);
+    })();
+
+    return () => clearTimeout(timeout);
   }, []);
 
-  const geoReady = coords !== undefined;
-
-  const { data, isLoading, error, refetch, isRefetching } = useQuery({
-    queryKey: ['home-data', coords?.latitude ?? null, coords?.longitude ?? null],
-    queryFn: () => fetchHomeData({ lat: coords?.latitude, lon: coords?.longitude }),
-    enabled: geoReady,
-    staleTime: 5 * 60 * 1000,
-  });
 
   const quickTools = [
     { title: 'Plant ID', icon: 'leaf-outline', color: '#D9F2DA', route: 'Diagnose' },
@@ -114,18 +117,38 @@ export default function HomeScreen() {
     { title: 'AI Chat', icon: 'chatbubble-outline', color: '#EDE7F6', route: 'Chat' },
   ];
 
-  if (!geoReady || isLoading) return (
+  const { data, isLoading, error, refetch, isRefetching } = useQuery({
+    queryKey: ['home-data', coords?.latitude ?? null, coords?.longitude ?? null],
+    queryFn: () => fetchHomeData({ lat: coords?.latitude, lon: coords?.longitude }),
+    enabled: geoReady,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+
+  // Offline fallback data — so the dashboard always renders
+  const offlineData = {
+    greeting: 'Good day, Farmer! 👋',
+    dashboardTitle: 'Your Farm Dashboard',
+    location: 'Location unavailable',
+    weather: { value: '--', summary: 'No weather data offline', precipitation: null },
+    instructions: ['Connect to internet for today\'s AI-powered farm advice.', 'Quick Scan works offline — scan any crop leaf now!'],
+    riskMeters: null,
+  };
+
+  const displayData = data || (error ? offlineData : null);
+
+  if (!geoReady || (isLoading && !displayData)) return (
     <SafeAreaView style={styles.root}>
       <LoadingState message="Loading your farm dashboard…" />
     </SafeAreaView>
   );
-  if (error && !data) return (
-    <SafeAreaView style={styles.root}>
-      <ErrorState message={error.message} onRetry={refetch} />
-    </SafeAreaView>
-  );
 
-  const { num: tempNum, unit: tempUnit } = parseTemperature(data?.weather?.value);
+  // Use offline fallback if no data (e.g. no network on first launch)
+  const dashData = displayData || offlineData;
+  const isOffline = !data && !!error;
+
+  const { num: tempNum, unit: tempUnit } = parseTemperature(dashData?.weather?.value);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -135,6 +158,15 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.accentGreen} colors={[colors.accentGreen]} />}
         showsVerticalScrollIndicator={false}
       >
+        {/* Offline banner */}
+        {isOffline && (
+          <View style={styles.offlineBanner}>
+            <Ionicons name="wifi-outline" size={14} color="#92400e" />
+            <Text style={styles.offlineBannerText}>Offline mode — showing cached data</Text>
+            <TouchableOpacity onPress={refetch}><Text style={styles.retryText}>Retry</Text></TouchableOpacity>
+          </View>
+        )}
+
         {/* ── Hero Card ── */}
         <Animated.View
           style={[
@@ -149,27 +181,27 @@ export default function HomeScreen() {
                 <View style={styles.heroLogo}>
                   <Text style={{ fontSize: 18 }}>🌱</Text>
                 </View>
-                <Text style={styles.heroGreeting} numberOfLines={1}>{data?.greeting}</Text>
+                <Text style={styles.heroGreeting} numberOfLines={1}>{dashData?.greeting}</Text>
               </View>
-              <Text style={styles.heroTitle} numberOfLines={2}>{data?.dashboardTitle}</Text>
+              <Text style={styles.heroTitle} numberOfLines={2}>{dashData?.dashboardTitle}</Text>
               <View style={styles.heroLocation}>
                 <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.86)" />
-                <Text style={styles.heroLocationText} numberOfLines={1}>{data?.location}</Text>
+                <Text style={styles.heroLocationText} numberOfLines={1}>{dashData?.location}</Text>
               </View>
             </View>
 
             {/* Weather Chip */}
             <View style={styles.weatherChip}>
-              <Text style={{ fontSize: 22 }}>{weatherEmoji(data?.weather?.summary)}</Text>
+              <Text style={{ fontSize: 22 }}>{weatherEmoji(dashData?.weather?.summary)}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2, marginTop: 4 }}>
                 <Text style={styles.weatherTemp}>{tempNum}</Text>
                 <Text style={styles.weatherUnit}>°{tempUnit}</Text>
               </View>
-              <Text style={styles.weatherDesc} numberOfLines={2}>{data?.weather?.summary}</Text>
-              {data?.weather?.precipitation !== undefined && (
+              <Text style={styles.weatherDesc} numberOfLines={2}>{dashData?.weather?.summary}</Text>
+              {dashData?.weather?.precipitation != null && (
                 <View style={styles.weatherPrecip}>
                   <Ionicons name="water-outline" size={11} color="rgba(255,255,255,0.75)" />
-                  <Text style={styles.weatherPrecipText}>{data.weather.precipitation} mm</Text>
+                  <Text style={styles.weatherPrecipText}>{dashData.weather.precipitation} mm</Text>
                 </View>
               )}
             </View>
@@ -197,11 +229,11 @@ export default function HomeScreen() {
         </Animated.View>
 
         {/* ── Today's AI Instructions ── */}
-        {data?.instructions?.length > 0 && (
+        {dashData?.instructions?.length > 0 && (
           <CardElevated style={{ marginTop: 16 }}>
             <Text style={styles.cardTitle}>Today's AI Instructions</Text>
             <View style={{ gap: 8, marginTop: 10 }}>
-              {data.instructions.map((ins, i) => (
+              {dashData.instructions.map((ins, i) => (
                 <View key={i} style={styles.instructionRow}>
                   <Ionicons name="checkmark-circle-outline" size={18} color={colors.primaryGreen} style={{ marginTop: 1, flexShrink: 0 }} />
                   <Text style={styles.instructionText}>{ins}</Text>
@@ -212,7 +244,7 @@ export default function HomeScreen() {
         )}
 
         {/* ── Risk Meters ── */}
-        {data?.riskMeters && (
+        {dashData?.riskMeters && (
           <>
             <SectionHeader
               title="Risk Meters"
@@ -225,7 +257,7 @@ export default function HomeScreen() {
                 { label: 'Pest Alert', key: 'pestAlert', icon: 'bug-outline' },
                 { label: 'Weather Risk', key: 'weatherRisk', icon: 'cloud-outline' },
               ].map((item) => {
-                const val = data.riskMeters[item.key] ?? 0;
+                const val = dashData.riskMeters[item.key] ?? 0;
                 return (
                   <View key={item.key} style={styles.riskCard}>
                     <View style={styles.riskIconBg}>
@@ -263,6 +295,15 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.backgroundGreen },
   scroll: { flex: 1 },
   scrollContent: { padding: spacing.lg },
+
+  offlineBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#fffbeb', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 10,
+    marginBottom: 10, borderWidth: 1, borderColor: '#fde68a',
+  },
+  offlineBannerText: { flex: 1, fontSize: 12, fontWeight: '600', color: '#92400e' },
+  retryText: { fontSize: 12, fontWeight: '800', color: colors.primaryGreen },
 
   heroCard: {
     borderRadius: 26,

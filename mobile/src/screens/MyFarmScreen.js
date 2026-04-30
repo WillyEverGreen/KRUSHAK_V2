@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, Alert, RefreshControl, Modal, KeyboardAvoidingView,
-  Platform, Animated, Pressable, Dimensions, Image,
+  TextInput, RefreshControl, Modal, KeyboardAvoidingView,
+  Platform, Animated, Pressable, Dimensions, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -15,7 +15,6 @@ import {
   fetchFarmData, addLivestockFeedReminder
 } from '../services/api';
 import { Card, CardElevated, Tag, LoadingState, HealthBar, Divider } from '../components/UIKit';
-import { Dropdown } from '../components/Dropdown';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -28,18 +27,20 @@ const TABS = [
 /* ── Generic Bottom Sheet Modal ───────────────────────────────── */
 function InputModal({ visible, title, fields, onConfirm, onCancel, confirmLabel = 'Save', icon }) {
   const [values, setValues] = useState({});
+  const [errorKeys, setErrorKeys] = useState([]);
+  const [openDropdown, setOpenDropdown] = useState(null);
   const slideAnim = useRef(new Animated.Value(600)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
-      // Initialize values if needed (e.g. for dropdowns with defaults)
       const initialValues = {};
       fields.forEach(f => {
-        if (f.defaultValue) initialValues[f.key] = f.defaultValue;
+        if (f.defaultValue !== undefined) initialValues[f.key] = f.defaultValue;
       });
       setValues(initialValues);
-      
+      setErrorKeys([]);
+      setOpenDropdown(null);
       Animated.parallel([
         Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 22, stiffness: 100 }),
         Animated.timing(backdropOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -52,8 +53,35 @@ function InputModal({ visible, title, fields, onConfirm, onCancel, confirmLabel 
     }
   }, [visible, fields]);
 
+  const requiredFields = fields.filter(f => f.required);
+  const isComplete = requiredFields.every(f => {
+    const v = values[f.key];
+    return v !== undefined && v !== null && v.toString().trim() !== '';
+  });
+
   const handleConfirm = () => {
+    const missing = requiredFields.filter(f => {
+      const v = values[f.key];
+      return v === undefined || v === null || v.toString().trim() === '';
+    });
+    if (missing.length > 0) {
+      setErrorKeys(missing.map(f => f.key));
+      setOpenDropdown(null);
+      return;
+    }
+    setErrorKeys([]);
     onConfirm(values);
+  };
+
+  const updateValue = (key, val) => {
+    setValues(prev => ({ ...prev, [key]: val }));
+    if (errorKeys.includes(key)) {
+      setErrorKeys(prev => prev.filter(k => k !== key));
+    }
+  };
+
+  const toggleDropdown = (key) => {
+    setOpenDropdown(prev => (prev === key ? null : key));
   };
 
   return (
@@ -80,79 +108,135 @@ function InputModal({ visible, title, fields, onConfirm, onCancel, confirmLabel 
             </View>
 
             <ScrollView 
-              style={{ maxHeight: SCREEN_WIDTH > 400 ? 500 : 400 }} 
+              style={{ maxHeight: SCREEN_WIDTH > 400 ? 520 : 420 }} 
               showsVerticalScrollIndicator={false} 
               contentContainerStyle={{ paddingBottom: 30 }}
               keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
             >
               <View style={styles.fieldGrid}>
-                {fields.map((field) => (
-                  <View key={field.key} style={field.half ? { width: '48%' } : { width: '100%' }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, marginTop: 16 }}>
-                      {field.icon && <Ionicons name={field.icon} size={14} color={colors.textGrey} />}
-                      <Text style={styles.fieldLabel}>{field.label.toUpperCase()}</Text>
-                    </View>
-
-                    {field.type === 'grid' ? (
-                      <View style={styles.optionsGrid}>
-                        {field.options.map((opt) => {
-                          const isActive = values[field.key] === opt.value;
-                          return (
-                            <TouchableOpacity
-                              key={opt.value}
-                              style={[styles.gridOption, isActive && styles.gridOptionActive]}
-                              onPress={() => setValues(prev => ({ ...prev, [field.key]: opt.value }))}
-                              activeOpacity={0.7}
-                            >
-                              <Text style={{ fontSize: 24, marginBottom: 4 }}>{opt.icon}</Text>
-                              <Text style={[styles.gridOptionText, isActive && styles.gridOptionTextActive]}>{opt.label}</Text>
-                            </TouchableOpacity>
-                          );
-                        })}
+                {fields.map((field) => {
+                  const hasError = errorKeys.includes(field.key);
+                  const isOpen = openDropdown === field.key;
+                  const selectedOpt = field.options?.find(o => o.value === values[field.key]);
+                  return (
+                    <View key={field.key} style={[field.half ? { width: '48%' } : { width: '100%' }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, marginTop: 16 }}>
+                        {field.icon && <Ionicons name={field.icon} size={14} color={hasError ? '#e53935' : colors.textGrey} />}
+                        <Text style={[styles.fieldLabel, hasError && { color: '#e53935' }]}>
+                          {field.label.toUpperCase()}
+                        </Text>
+                        {hasError && <Text style={{ fontSize: 10, color: '#e53935', fontWeight: '700' }}>REQUIRED</Text>}
                       </View>
-                    ) : field.type === 'dropdown' ? (
-                      <Dropdown
-                        label={field.label}
-                        options={field.options}
-                        value={values[field.key]}
-                        onSelect={(val) => setValues(prev => ({ ...prev, [field.key]: val }))}
-                        placeholder={field.placeholder}
-                      />
-                    ) : field.type === 'select' ? (
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
-                        {field.options.map(opt => {
-                          const isActive = values[field.key] === opt.value;
-                          return (
-                            <TouchableOpacity
-                              key={opt.value}
-                              style={[styles.selectOption, isActive && styles.selectOptionActive]}
-                              onPress={() => setValues(prev => ({ ...prev, [field.key]: opt.value }))}
-                              activeOpacity={0.7}
-                            >
-                              {opt.icon && <Text style={{ marginRight: 4, fontSize: 16 }}>{opt.icon}</Text>}
-                              <Text style={[styles.selectOptionText, isActive && styles.selectOptionTextActive]}>{opt.label}</Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </ScrollView>
-                    ) : (
-                      <TextInput
-                        style={[styles.fieldInput, field.multiline && { height: 100, textAlignVertical: 'top' }]}
-                        placeholder={field.placeholder || ''}
-                        placeholderTextColor={colors.textGrey}
-                        value={values[field.key] || ''}
-                        onChangeText={(v) => setValues((prev) => ({ ...prev, [field.key]: v }))}
-                        keyboardType={field.keyboardType || 'default'}
-                        multiline={field.multiline}
-                        blurOnSubmit={!field.multiline}
-                      />
-                    )}
-                  </View>
-                ))}
+
+                      {field.type === 'grid' ? (
+                        <View style={[styles.optionsGrid, hasError && styles.errorBorderWrap]}>
+                          {field.options.map((opt) => {
+                            const isActive = values[field.key] === opt.value;
+                            return (
+                              <TouchableOpacity
+                                key={opt.value}
+                                style={[styles.gridOption, isActive && styles.gridOptionActive]}
+                                onPress={() => updateValue(field.key, opt.value)}
+                                activeOpacity={0.7}
+                              >
+                                <Text style={{ fontSize: 24, marginBottom: 4 }}>{opt.icon}</Text>
+                                <Text style={[styles.gridOptionText, isActive && styles.gridOptionTextActive]}>{opt.label}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      ) : field.type === 'dropdown' ? (
+                        <View>
+                          <TouchableOpacity
+                            style={[styles.inlineDropTrigger, hasError && styles.fieldInputError, isOpen && styles.inlineDropTriggerOpen]}
+                            onPress={() => toggleDropdown(field.key)}
+                            activeOpacity={0.8}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}>
+                              {selectedOpt?.icon && <Text style={{ fontSize: 18 }}>{selectedOpt.icon}</Text>}
+                              <Text style={[styles.inlineDropValue, !selectedOpt && styles.inlineDropPlaceholder]}>
+                                {selectedOpt ? selectedOpt.label : (field.placeholder || 'Select…')}
+                              </Text>
+                            </View>
+                            <Ionicons
+                              name={isOpen ? 'chevron-up' : 'chevron-down'}
+                              size={16}
+                              color={colors.textGrey}
+                            />
+                          </TouchableOpacity>
+                          {/* Inline options list */}
+                          {isOpen && (
+                            <View style={styles.inlineDropList}>
+                              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: 240 }}>
+                                {field.options.map((opt) => {
+                                  const isActive = values[field.key] === opt.value;
+                                  return (
+                                    <TouchableOpacity
+                                      key={opt.value}
+                                      style={[styles.inlineDropItem, isActive && styles.inlineDropItemActive]}
+                                      onPress={() => {
+                                        updateValue(field.key, opt.value);
+                                        setOpenDropdown(null);
+                                      }}
+                                      activeOpacity={0.7}
+                                    >
+                                      {opt.icon && <Text style={{ fontSize: 18, marginRight: 10 }}>{opt.icon}</Text>}
+                                      <Text style={[styles.inlineDropItemText, isActive && styles.inlineDropItemTextActive]}>
+                                        {opt.label}
+                                      </Text>
+                                      {isActive && <Ionicons name="checkmark" size={16} color={colors.primaryGreen} style={{ marginLeft: 'auto' }} />}
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </ScrollView>
+                            </View>
+                          )}
+                        </View>
+                      ) : field.type === 'select' ? (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+                          {field.options.map(opt => {
+                            const isActive = values[field.key] === opt.value;
+                            return (
+                              <TouchableOpacity
+                                key={opt.value}
+                                style={[styles.selectOption, isActive && styles.selectOptionActive]}
+                                onPress={() => updateValue(field.key, opt.value)}
+                                activeOpacity={0.7}
+                              >
+                                {opt.icon && <Text style={{ marginRight: 4, fontSize: 16 }}>{opt.icon}</Text>}
+                                <Text style={[styles.selectOptionText, isActive && styles.selectOptionTextActive]}>{opt.label}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </ScrollView>
+                      ) : (
+                        <TextInput
+                          style={[
+                            styles.fieldInput,
+                            field.multiline && { height: 100, textAlignVertical: 'top' },
+                            hasError && styles.fieldInputError,
+                          ]}
+                          placeholder={field.placeholder || ''}
+                          placeholderTextColor={hasError ? '#ef9a9a' : colors.textGrey}
+                          value={values[field.key] || ''}
+                          onChangeText={(v) => updateValue(field.key, v)}
+                          keyboardType={field.keyboardType || 'default'}
+                          multiline={field.multiline}
+                          blurOnSubmit={!field.multiline}
+                        />
+                      )}
+                    </View>
+                  );
+                })}
               </View>
             </ScrollView>
 
-            <TouchableOpacity style={styles.modalConfirmBtn} onPress={handleConfirm} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={[styles.modalConfirmBtn, isComplete && styles.modalConfirmBtnActive]}
+              onPress={handleConfirm}
+              activeOpacity={0.85}
+            >
               <Text style={{ fontSize: 20, marginRight: 8 }}>{icon}</Text>
               <Text style={styles.modalConfirmText}>{confirmLabel}</Text>
             </TouchableOpacity>
@@ -170,9 +254,9 @@ export default function MyFarmScreen() {
   const [showAddReminder, setShowAddReminder] = useState(false);
   const qc = useQueryClient();
 
-  const { data: homeData } = useQuery({ queryKey: ['home'], queryFn: fetchHomeData });
-  const { data: cropData, isLoading: cropsLoading, refetch: refetchCrops } = useQuery({ queryKey: ['crops'], queryFn: fetchCrops });
-  const { data: farmData, isLoading: farmLoading, refetch: refetchFarm } = useQuery({ queryKey: ['farmData'], queryFn: fetchFarmData });
+  const { data: homeData } = useQuery({ queryKey: ['home'], queryFn: () => fetchHomeData() });
+  const { data: cropData, isLoading: cropsLoading, refetch: refetchCrops } = useQuery({ queryKey: ['crops'], queryFn: () => fetchCrops(), staleTime: 0 });
+  const { data: farmData, isLoading: farmLoading, refetch: refetchFarm } = useQuery({ queryKey: ['farmData'], queryFn: () => fetchFarmData(), staleTime: 0 });
 
   const crops = cropData?.crops || [];
   const reminders = farmData?.reminders || [];
@@ -182,13 +266,25 @@ export default function MyFarmScreen() {
   const avgHealth = avgHealthRaw <= 1 ? Math.round(avgHealthRaw * 100) : avgHealthRaw;
 
   // Mutations
-  const addCropMut = useMutation({ mutationFn: addCrop, onSuccess: () => { qc.invalidateQueries({ queryKey: ['crops'] }); qc.invalidateQueries({ queryKey: ['farmData'] }); setShowAddCrop(false); } });
+  const addCropMut = useMutation({ 
+    mutationFn: addCrop, 
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['crops'] }); qc.invalidateQueries({ queryKey: ['farmData'] }); setShowAddCrop(false); },
+    onError: (err) => Alert.alert('Error', err?.response?.data?.message || 'Could not add crop. Are you logged in?'),
+  });
   const deleteCropMut = useMutation({ mutationFn: deleteCrop, onSuccess: () => { qc.invalidateQueries({ queryKey: ['crops'] }); qc.invalidateQueries({ queryKey: ['farmData'] }); } });
-  const addLsMut = useMutation({ mutationFn: addLivestock, onSuccess: () => { qc.invalidateQueries({ queryKey: ['farmData'] }); setShowAddLivestock(false); } });
+  const addLsMut = useMutation({ 
+    mutationFn: addLivestock, 
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['farmData'] }); setShowAddLivestock(false); },
+    onError: (err) => Alert.alert('Error', err?.response?.data?.message || 'Could not add livestock. Are you logged in?'),
+  });
   const updateLsMut = useMutation({ mutationFn: ({ id, data }) => updateLivestock(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['farmData'] }) });
   const deleteLsMut = useMutation({ mutationFn: deleteLivestock, onSuccess: () => qc.invalidateQueries({ queryKey: ['farmData'] }) });
   const feedLsMut = useMutation({ mutationFn: ({ id, payload }) => addLivestockFeedReminder(id, payload), onSuccess: () => qc.invalidateQueries({ queryKey: ['farmData'] }) });
-  const addReminderMut = useMutation({ mutationFn: addReminder, onSuccess: () => { qc.invalidateQueries({ queryKey: ['farmData'] }); setShowAddReminder(false); } });
+  const addReminderMut = useMutation({ 
+    mutationFn: addReminder, 
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['farmData'] }); setShowAddReminder(false); },
+    onError: (err) => Alert.alert('Error', err?.response?.data?.message || 'Could not add reminder. Are you logged in?'),
+  });
   const toggleReminderMut = useMutation({ mutationFn: toggleReminder, onSuccess: () => qc.invalidateQueries({ queryKey: ['farmData'] }) });
   const deleteReminderMut = useMutation({ mutationFn: deleteReminder, onSuccess: () => qc.invalidateQueries({ queryKey: ['farmData'] }) });
 
@@ -294,24 +390,45 @@ export default function MyFarmScreen() {
               <Card style={styles.lsOverview}>
                 <Text style={styles.lsOverviewTitle}>Herd Overview</Text>
                 <View style={styles.lsOverviewRow}>
-                  <Text style={styles.lsOverviewSub}>Average health: 80%</Text>
-                  <Tag label={`${livestock.length} animals`} variant="success" />
+                  <Text style={styles.lsOverviewSub}>
+                    {farmLoading ? 'Loading...' : `${livestock.length} animal group${livestock.length !== 1 ? 's' : ''} tracked`}
+                  </Text>
+                  <Tag label={`${livestock.reduce((s, l) => s + (l.count || 1), 0)} total`} variant="success" />
                 </View>
               </Card>
-              {livestock.map((l, i) => (
-                <LivestockCard
-                  key={l._id || i}
-                  ls={l}
-                  onDelete={() => deleteLsMut.mutate(l._id)}
-                  onUpdateHealth={(delta) => {
-                    const next = Math.max(0, Math.min(1, (l.healthScore || 0.8) + delta / 100));
-                    updateLsMut.mutate({ id: l._id, data: { healthScore: next } });
-                  }}
-                  onFeedReminder={() => {
-                    feedLsMut.mutate({ id: l._id, payload: { dueAtLabel: 'Today 7:00 PM' } });
-                  }}
-                />
-              ))}
+              {farmLoading ? (
+                <View style={{ alignItems: 'center', padding: 32 }}>
+                  <Text style={{ fontSize: 32, marginBottom: 8 }}>🐾</Text>
+                  <Text style={{ color: colors.textGrey, fontWeight: '600' }}>Loading livestock...</Text>
+                </View>
+              ) : livestock.length === 0 ? (
+                <View style={{ alignItems: 'center', padding: 32, backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: colors.borderSoft }}>
+                  <Text style={{ fontSize: 40, marginBottom: 12 }}>🐄</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: colors.textDark, marginBottom: 6 }}>No livestock yet</Text>
+                  <Text style={{ fontSize: 13, color: colors.textGrey, textAlign: 'center', marginBottom: 16 }}>
+                    Tap "Add Livestock" above to start tracking your animals
+                  </Text>
+                  <TouchableOpacity style={styles.addTrigger} onPress={() => setShowAddLivestock(true)} activeOpacity={0.7}>
+                    <Ionicons name="add" size={18} color={colors.primaryGreen} />
+                    <Text style={styles.addTriggerText}>Add First Animal</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                livestock.map((l, i) => (
+                  <LivestockCard
+                    key={l._id || i}
+                    ls={l}
+                    onDelete={() => deleteLsMut.mutate(l._id)}
+                    onUpdateHealth={(delta) => {
+                      const next = Math.max(0, Math.min(1, (l.healthScore || 0.8) + delta / 100));
+                      updateLsMut.mutate({ id: l._id, data: { healthScore: next } });
+                    }}
+                    onFeedReminder={() => {
+                      feedLsMut.mutate({ id: l._id, payload: { dueAtLabel: 'Today 7:00 PM' } });
+                    }}
+                  />
+                ))
+              )}
             </View>
           )}
         </View>
@@ -326,7 +443,7 @@ export default function MyFarmScreen() {
         icon="🌱"
         confirmLabel="Add Crop"
         fields={[
-          { key: 'name', label: 'CROP NAME *', placeholder: 'e.g. Wheat, Tomato, Rice...', icon: 'leaf-outline' },
+          { key: 'name', label: 'CROP NAME *', placeholder: 'e.g. Wheat, Tomato, Rice...', icon: 'leaf-outline', required: true },
           { key: 'variety', label: 'VARIETY / TYPE', placeholder: 'e.g. HD-2967, Cherry, Basmati...', icon: 'pricetag-outline' },
           { 
             key: 'stage', 
@@ -343,7 +460,7 @@ export default function MyFarmScreen() {
             ]
           },
           { key: 'sowingDate', label: 'SOWING DATE', placeholder: 'mm/dd/yyyy', icon: 'calendar-outline', half: true },
-          { key: 'fieldSizeAcres', label: 'FIELD SIZE (ACRES)', placeholder: '1', keyboardType: 'numeric', icon: 'grid-outline', half: true },
+          { key: 'fieldSizeAcres', label: 'FIELD SIZE (ACRES) *', placeholder: '1', keyboardType: 'numeric', icon: 'grid-outline', half: true, required: true },
           { key: 'notes', label: 'NOTES (OPTIONAL)', placeholder: 'Any observations, soil type, previous yield...', icon: 'document-text-outline', multiline: true },
         ]}
         onConfirm={(v) => addCropMut.mutate({
@@ -361,22 +478,27 @@ export default function MyFarmScreen() {
         fields={[
           { 
             key: 'type', 
-            label: 'LIVESTOCK TYPE', 
+            label: 'LIVESTOCK TYPE *', 
             icon: 'paw-outline', 
             type: 'dropdown',
             placeholder: 'Select animal type',
+            required: true,
             options: [
               { label: 'Cow', value: 'Cow', icon: '🐄' },
               { label: 'Buffalo', value: 'Buffalo', icon: '🐃' },
               { label: 'Goat', value: 'Goat', icon: '🐐' },
               { label: 'Sheep', value: 'Sheep', icon: '🐑' },
-              { label: 'Poultry', value: 'Poultry', icon: '🐔' },
+              { label: 'Chicken', value: 'Chicken', icon: '🐔' },
+              { label: 'Duck', value: 'Duck', icon: '🦆' },
+              { label: 'Pig', value: 'Pig', icon: '🐖' },
+              { label: 'Horse', value: 'Horse', icon: '🐎' },
+              { label: 'Rabbit', value: 'Rabbit', icon: '🐇' },
             ]
           },
           { key: 'name', label: 'NICKNAME (OPTIONAL)', placeholder: 'e.g. Amul', icon: 'create-outline', half: true },
-          { key: 'count', label: 'COUNT', placeholder: '1', keyboardType: 'numeric', icon: 'add-outline', half: true },
+          { key: 'count', label: 'COUNT *', placeholder: '1', keyboardType: 'numeric', icon: 'add-outline', half: true, required: true },
           { key: 'healthScore', label: 'HEALTH SCORE (0-1)', placeholder: '0.8', keyboardType: 'numeric', icon: 'medkit-outline', half: true },
-          { key: 'feedIntervalHours', label: 'FEED INTERVAL (HOURS)', placeholder: '12', keyboardType: 'numeric', icon: 'restaurant-outline', half: true },
+          { key: 'feedIntervalHours', label: 'FEED INTERVAL (HOURS) *', placeholder: '12', keyboardType: 'numeric', icon: 'restaurant-outline', half: true, required: true },
           { key: 'lastFedAtLabel', label: 'LAST FED LABEL', placeholder: 'Today 7:00 AM', icon: 'time-outline', half: true },
           { key: 'notes', label: 'NOTES (OPTIONAL)', placeholder: 'Breed, age, etc.', icon: 'document-text-outline', multiline: true },
         ]}
@@ -395,22 +517,39 @@ export default function MyFarmScreen() {
         icon="⏰"
         confirmLabel="Save Reminder"
         fields={[
-          { key: 'task', label: 'TASK', placeholder: 'e.g. Spray pest control', icon: 'create-outline' },
+          { key: 'task', label: 'TASK *', placeholder: 'e.g. Spray pest control', icon: 'create-outline', required: true },
           { key: 'dueAtLabel', label: 'DUE LABEL', placeholder: 'Today 6:00 PM', icon: 'calendar-outline', half: true },
           { 
             key: 'priority', 
-            label: 'PRIORITY', 
+            label: 'PRIORITY *', 
             icon: 'warning-outline', 
             half: true,
             type: 'dropdown',
             placeholder: 'Priority',
+            required: true,
             options: [
               { label: 'High', value: 'high', icon: '🔴' },
               { label: 'Med', value: 'medium', icon: '🟡' },
               { label: 'Low', value: 'low', icon: '🟢' },
             ]
           },
-          { key: 'category', label: 'CATEGORY', placeholder: 'crop, irrigation...', icon: 'bookmark-outline' },
+          {
+            key: 'category',
+            label: 'CATEGORY *',
+            icon: 'bookmark-outline',
+            type: 'dropdown',
+            placeholder: 'Select category',
+            required: true,
+            options: [
+              { label: 'General', value: 'general', icon: '📋' },
+              { label: 'Crop', value: 'crop', icon: '🌾' },
+              { label: 'Irrigation', value: 'irrigation', icon: '💧' },
+              { label: 'Spray', value: 'spray', icon: '🧪' },
+              { label: 'Harvest', value: 'harvest', icon: '🚜' },
+              { label: 'Livestock Feed', value: 'livestock-feed', icon: '🐄' },
+              { label: 'Livestock Health', value: 'livestock-health', icon: '🩺' },
+            ]
+          },
         ]}
         onConfirm={(v) => addReminderMut.mutate({
           ...v,
@@ -682,7 +821,10 @@ const styles = StyleSheet.create({
   fieldGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   fieldLabel: { fontSize: 11, fontWeight: '800', color: colors.textGrey, letterSpacing: 0.5 },
   fieldInput: { backgroundColor: '#fff', borderRadius: 12, padding: 14, fontSize: 14, color: colors.textDark, borderWidth: 1, borderColor: '#e0e0e0' },
-  modalConfirmBtn: { backgroundColor: '#a5d6a7', borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', marginTop: 12 },
+  fieldInputError: { borderColor: '#e53935', borderWidth: 2, backgroundColor: '#fff5f5' },
+  errorBorderWrap: { borderRadius: 12, borderWidth: 2, borderColor: '#e53935' },
+  modalConfirmBtn: { backgroundColor: '#c8e6c9', borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', marginTop: 12 },
+  modalConfirmBtnActive: { backgroundColor: colors.primaryGreen, shadowColor: colors.primaryGreen, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
   modalConfirmText: { fontSize: 16, fontWeight: '800', color: '#fff' },
 
   // Grid options
@@ -697,4 +839,30 @@ const styles = StyleSheet.create({
   selectOptionActive: { borderColor: colors.primaryGreen, backgroundColor: '#e8f5e9' },
   selectOptionText: { fontSize: 13, fontWeight: '700', color: colors.textGrey },
   selectOptionTextActive: { color: colors.primaryGreen },
+
+  // Inline dropdown (no nested Modal)
+  inlineDropTrigger: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 14,
+    borderWidth: 1, borderColor: '#e0e0e0', minHeight: 52,
+  },
+  inlineDropTriggerOpen: {
+    borderColor: colors.primaryGreen, borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
+    borderBottomWidth: 0,
+  },
+  inlineDropValue: { fontSize: 14, color: colors.textDark, fontWeight: '500', flex: 1 },
+  inlineDropPlaceholder: { color: colors.textGrey },
+  inlineDropList: {
+    backgroundColor: '#fff', borderWidth: 1, borderTopWidth: 0,
+    borderColor: colors.primaryGreen, borderBottomLeftRadius: 12, borderBottomRightRadius: 12,
+    overflow: 'hidden', maxHeight: 260,
+  },
+  inlineDropItem: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f0f0f0',
+  },
+  inlineDropItemActive: { backgroundColor: '#f1f8e9' },
+  inlineDropItemText: { fontSize: 14, fontWeight: '500', color: '#555', flex: 1 },
+  inlineDropItemTextActive: { color: colors.primaryGreen, fontWeight: '700' },
 });

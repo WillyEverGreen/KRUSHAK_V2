@@ -52,6 +52,30 @@ export async function analyzePlantImage(payload) {
   };
 }
 
+/** Quick scan using the on-server TFLite MobileNetV2 model (~1-2s, no Gemini needed) */
+export async function quickScanPlant(payload) {
+  const { data } = await http.post('/diagnose/quick', payload, {
+    timeout: 20_000,
+  });
+  return {
+    analysis: data.analysis,
+    fromCache: false,
+    offlineModel: true,
+    inferenceMs: data?.meta?.inferenceMs,
+  };
+}
+
+export async function pingServer() {
+  try {
+    // Health endpoint is at the root, not under /api
+    const baseUrl = (http.defaults.baseURL || '').replace(/\/api\/?$/, '');
+    const resp = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(4000) });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function fetchRecentDiagnoses() {
   const { data } = await http.get('/diagnose/recent');
   return data.recent || [];
