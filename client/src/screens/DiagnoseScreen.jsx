@@ -41,6 +41,7 @@ export default function DiagnoseScreen() {
   const { data: advisoryData } = useQuery({
     queryKey: ["disease-advisory"],
     queryFn: fetchDiseaseAdvisory,
+    refetchInterval: 60000,
   });
 
   const { data: recent = [] } = useQuery({

@@ -152,7 +152,7 @@ export default function MyFarmScreen() {
     queryFn: () =>
       fetchFarmData({ lat: coords?.latitude, lon: coords?.longitude }),
     enabled: Boolean(user),
-    staleTime: 3 * 60 * 1000,
+    staleTime: 0,
   });
 
   const {
@@ -164,43 +164,43 @@ export default function MyFarmScreen() {
     queryFn: () =>
       fetchCrops({ lat: coords?.latitude, lon: coords?.longitude }),
     enabled: Boolean(user),
-    staleTime: 3 * 60 * 1000,
+    staleTime: 0,
   });
 
   const addReminderMutation = useMutation({
     mutationFn: addReminder,
-    onSuccess: () => queryClient.invalidateQueries(["farm-data"]),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["farm-data"] }),
   });
 
   const toggleMutation = useMutation({
     mutationFn: toggleReminder,
-    onSuccess: () => queryClient.invalidateQueries(["farm-data"]),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["farm-data"] }),
   });
 
   const deleteReminderMutation = useMutation({
     mutationFn: deleteReminder,
-    onSuccess: () => queryClient.invalidateQueries(["farm-data"]),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["farm-data"] }),
   });
 
   const addLivestockMutation = useMutation({
     mutationFn: addLivestock,
-    onSuccess: () => queryClient.invalidateQueries(["farm-data"]),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["farm-data"] }),
   });
 
   const updateLivestockMutation = useMutation({
     mutationFn: ({ id, payload }) => updateLivestock(id, payload),
-    onSuccess: () => queryClient.invalidateQueries(["farm-data"]),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["farm-data"] }),
   });
 
   const deleteLivestockMutation = useMutation({
     mutationFn: deleteLivestock,
-    onSuccess: () => queryClient.invalidateQueries(["farm-data"]),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["farm-data"] }),
   });
 
   const addFeedReminderMutation = useMutation({
     mutationFn: ({ id, dueAtLabel }) =>
       addLivestockFeedReminder(id, { dueAtLabel }),
-    onSuccess: () => queryClient.invalidateQueries(["farm-data"]),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["farm-data"] }),
   });
 
   const reminders = farmData?.reminders || [];
@@ -805,8 +805,8 @@ export default function MyFarmScreen() {
         <AddCropModal
           onClose={() => setShowAddCrop(false)}
           onAdd={() => {
-            queryClient.invalidateQueries(["crops"]);
-            queryClient.invalidateQueries(["farm-data"]);
+            queryClient.invalidateQueries({ queryKey: ["crops"] });
+            queryClient.invalidateQueries({ queryKey: ["farm-data"] });
           }}
         />
       )}
@@ -814,7 +814,7 @@ export default function MyFarmScreen() {
       {showAddReminder && (
         <AddReminderModal
           onClose={() => setShowAddReminder(false)}
-          onAdd={() => queryClient.invalidateQueries(["farm-data"])}
+          onAdd={() => queryClient.invalidateQueries({ queryKey: ["farm-data"] })}
           quickTemplates={quickReminderTemplates}
         />
       )}
@@ -824,8 +824,10 @@ export default function MyFarmScreen() {
           onClose={() => setShowAddLivestock(false)}
           onAdd={(payload) => {
             addLivestockMutation.mutate(payload, {
-              onSuccess: () => {
-                setShowAddLivestock(false);
+              onSuccess: () => setShowAddLivestock(false),
+              onError: (err) => {
+                const msg = err?.response?.data?.message || "Could not add livestock. Please try again.";
+                window.alert(msg);
               },
             });
           }}
@@ -1247,6 +1249,7 @@ function AddLivestockModal({ onClose, onAdd }) {
                 className="farm-input"
                 value={count}
                 onChange={(e) => setCount(e.target.value)}
+                required
               />
             </div>
 
@@ -1278,6 +1281,7 @@ function AddLivestockModal({ onClose, onAdd }) {
                 className="farm-input"
                 value={feedIntervalHours}
                 onChange={(e) => setFeedIntervalHours(e.target.value)}
+                required
               />
             </div>
 
