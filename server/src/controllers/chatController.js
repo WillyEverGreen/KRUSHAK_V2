@@ -108,6 +108,59 @@ async function getGeminiReply(message, history = []) {
   return replyText;
 }
 
+async function getGroqReply(message, history = []) {
+  const url = "https://api.groq.com/openai/v1/chat/completions";
+  const messages = [
+    {
+      role: "system",
+      content: "You are an agricultural assistant for Indian farmers. Give practical, concise steps with safe recommendations. If uncertain, advise consulting local agronomists.",
+    },
+  ];
+
+  for (const item of history) {
+    if (!item || !item.text) continue;
+    messages.push({
+      role: item.role === "bot" ? "assistant" : "user",
+      content: item.text,
+    });
+  }
+
+  messages.push({ role: "user", content: message });
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${env.GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "llama-3.1-8b-instant",
+      messages,
+      temperature: 0.6,
+      max_tokens: 400,
+    }),
+  });
+
+  const data = await resp.json().catch(() => ({}));
+
+  if (!resp.ok) {
+    const errText = data?.error?.message || `Groq request failed with status ${resp.status}`;
+    throw new Error(errText);
+  }
+
+  let replyText = data?.choices?.[0]?.message?.content?.trim();
+  
+  if (replyText) {
+    replyText = replyText.replace(/<br\s*\/?>/gi, "\n");
+  }
+
+  if (!replyText) {
+    throw new Error("Groq returned an empty response");
+  }
+
+  return replyText;
+}
+
 async function getPublicFallbackReply(message, history = []) {
   const convo = history
     .filter((item) => item && item.text)
@@ -171,13 +224,24 @@ export async function sendChatMessage(req, res, next) {
         const reply = await getGeminiReply(payload.message, payload.history);
         return res.status(200).json({ reply, source: "gemini" });
       } catch (err) {
-        // Log and fall back to rule-based reply if the external call fails
+        // Log and fall back
         // eslint-disable-next-line no-console
-        console.error("Gemini proxy error:", err);
+        console.error("Gemini proxy error:", err.message);
       }
     }
 
-    // Dynamic no-key fallback when Gemini is unavailable or quota-limited
+    // Fallback to Groq if configured
+    if (env.GROQ_API_KEY) {
+      try {
+        const reply = await getGroqReply(payload.message, payload.history);
+        return res.status(200).json({ reply, source: "groq" });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("Groq fallback error:", err.message);
+      }
+    }
+
+    // Dynamic no-key fallback when Gemini/Groq is unavailable or quota-limited
     try {
       const reply = await getPublicFallbackReply(
         payload.message,

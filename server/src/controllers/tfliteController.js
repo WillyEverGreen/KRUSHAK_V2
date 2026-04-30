@@ -151,3 +151,16 @@ export async function quickDiagnose(req, res) {
     });
   }
 }
+
+/** Helper for AI fallback */
+export async function getTfliteFallbackAnalysis(imageBase64) {
+  const tfliteResult = await runTflite(imageBase64);
+  const top = tfliteResult.predictions[0];
+  const analysis = labelToAnalysis(top.disease, top.confidence);
+  analysis.allPredictions = tfliteResult.predictions.map(p => ({
+    label: p.disease,
+    confidence: Math.round(p.confidence * 100),
+  }));
+  analysis.inferenceMs = tfliteResult.inference_ms;
+  return analysis;
+}

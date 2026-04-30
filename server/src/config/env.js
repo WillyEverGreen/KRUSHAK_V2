@@ -27,6 +27,7 @@ const envSchema = z.object({
   NEWSDATA_API_KEY: z.string().optional().default(""),
   GEMINI_API_KEY: z.string().optional().default(""),
   GEMINI_MODEL: z.string().default("gemini-3.1-pro-preview"),
+  GROQ_API_KEY: z.string().optional().default(""),
   /* Provider hints — all optional, safe defaults */
   WEATHER_PROVIDER: z.string().optional().default("open-meteo"),
   MARKET_PROVIDER: z.string().optional().default("data.gov.in"),

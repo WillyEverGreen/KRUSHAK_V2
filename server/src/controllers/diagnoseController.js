@@ -6,6 +6,7 @@ import { ScanRecord } from "../models/ScanRecord.js";
 import { Crop } from "../models/Crop.js";
 import { Livestock } from "../models/Livestock.js";
 import { env } from "../config/env.js";
+import { getTfliteFallbackAnalysis } from "./tfliteController.js";
 
 const scanInputSchema = z.object({
   crop: z.string().min(2),
@@ -749,23 +750,14 @@ export async function getDiseaseAdvisory(req, res) {
       message: `${season} season advisory — watch for these high-severity threats`,
     });
   }
+  const hasBoth = userCrops.length > 0 && userLivestock.length > 0;
+  const promptInstructions = hasBoth
+    ? `Generate exactly 2 disease/pest threats. You MUST return one for a CROP they own AND one for a LIVESTOCK animal they own. No exceptions.`
+    : userLivestock.length > 0
+      ? `Generate exactly 2 health threats targeting the livestock they own.`
+      : `Generate exactly 2 disease/pest threats targeting the crops they own.`;
 
-  // Try Gemini for personalized advisory
-  try {
-    const geminiClient = getGeminiClient();
-    if (!geminiClient) throw new Error("Gemini not configured");
-
-    const modelName = normalizeModelName(env.GEMINI_MODEL) || "gemini-2.0-flash";
-    const model = geminiClient.getGenerativeModel({ model: modelName });
-
-    const hasBoth = userCrops.length > 0 && userLivestock.length > 0;
-    const promptInstructions = hasBoth
-      ? `Generate exactly 2 disease/pest threats. You MUST return one for a CROP they own AND one for a LIVESTOCK animal they own. No exceptions.`
-      : userLivestock.length > 0
-        ? `Generate exactly 2 health threats targeting the livestock they own.`
-        : `Generate exactly 2 disease/pest threats targeting the crops they own.`;
-
-    const prompt = `You are an expert agricultural and veterinary advisor.
+  const prompt = `You are an expert agricultural and veterinary advisor.
 Current season: ${season}.
 Farmer's crops: ${userCrops.join(', ') || 'None'}.
 Farmer's livestock: ${userLivestock.join(', ') || 'None'}.
@@ -782,18 +774,58 @@ Return ONLY valid JSON array with exactly 2 items:
   }
 ]`;
 
-    console.log(`[Gemini] Generating advisory for user: ${req.user.sub} — crops: [${userCrops}], livestock: [${userLivestock}]`);
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const jsonStr = getJsonCandidate(text);
-    const parsed = JSON.parse(jsonStr);
+  // Try Gemini for personalized advisory
+  let finalAlerts = [];
+  try {
+    let parsed = null;
+    let fallbackToGroq = false;
+
+    const geminiClient = getGeminiClient();
+    if (!geminiClient) {
+      fallbackToGroq = true;
+    } else {
+      const modelName = normalizeModelName(env.GEMINI_MODEL) || "gemini-2.0-flash";
+      const model = geminiClient.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      const jsonStr = getJsonCandidate(text);
+      parsed = JSON.parse(jsonStr);
+    }
+
+    if (!parsed && fallbackToGroq && env.GROQ_API_KEY) {
+      console.log(`[Groq] Generating advisory for user: ${req.user.sub}`);
+      const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${env.GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.6,
+          response_format: { type: "json_object" } // Although Groq doesn't perfectly support this, we parse anyway
+        })
+      });
+      const data = await resp.json().catch(()=>({}));
+      if (!resp.ok) throw new Error(data?.error?.message || "Groq request failed");
+      const text = data?.choices?.[0]?.message?.content || "";
+      const jsonStr = getJsonCandidate(text);
+      parsed = JSON.parse(jsonStr);
+      // Sometimes models return an object containing the array, like {"alerts": [...]}
+      if (parsed && !Array.isArray(parsed)) {
+        const key = Object.keys(parsed).find(k => Array.isArray(parsed[k]));
+        if (key) parsed = parsed[key];
+        else parsed = [parsed];
+      }
+    }
 
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      throw new Error("Invalid Gemini response for advisory");
+      throw new Error("Invalid response for advisory");
     }
 
     // Ensure we have both a crop and livestock card when user has both
-    let finalAlerts = parsed.map(a => ({
+    finalAlerts = parsed.map(a => ({
       crop: a.crop,
       disease: a.disease,
       severity: "High",
@@ -801,36 +833,71 @@ Return ONLY valid JSON array with exactly 2 items:
       season
     }));
 
-    // If user has livestock but Gemini didn't include a livestock card, inject one
-    if (userLivestock.length > 0) {
-      const hasLsCard = finalAlerts.some(a =>
-        Object.keys(LIVESTOCK_ADVISORIES).map(k => k.toLowerCase()).includes(a.crop?.toLowerCase())
-      );
-      if (!hasLsCard) {
-        const lsType = userLivestock[0];
-        const adv = LIVESTOCK_ADVISORIES[lsType] || LIVESTOCK_ADVISORIES.Cow;
-        finalAlerts = [finalAlerts[0], { crop: lsType, disease: adv.disease, severity: "High", symptom: adv.symptom, season }];
-      }
+  } catch (err) {
+    if (!finalAlerts.length && env.GROQ_API_KEY && err.message !== "Invalid response for advisory") {
+       // if it failed and we haven't tried groq yet
+       try {
+         console.log(`[Groq] Fallback generating advisory for user: ${req.user.sub}`);
+         const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${env.GROQ_API_KEY}`
+            },
+            body: JSON.stringify({
+              model: "llama-3.3-70b-versatile",
+              messages: [{ role: "user", content: prompt }],
+              temperature: 0.6
+            })
+          });
+          const data = await resp.json().catch(()=>({}));
+          if (resp.ok && data?.choices?.[0]?.message?.content) {
+            let parsed = JSON.parse(getJsonCandidate(data.choices[0].message.content));
+            if (parsed && !Array.isArray(parsed)) {
+              const key = Object.keys(parsed).find(k => Array.isArray(parsed[k]));
+              if (key) parsed = parsed[key];
+              else parsed = [parsed];
+            }
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              finalAlerts = parsed.map(a => ({ crop: a.crop, disease: a.disease, severity: "High", symptom: a.symptom, season }));
+            }
+          }
+       } catch (groqErr) {
+         console.error("Groq advisory fallback also failed:", groqErr?.message?.slice(0, 80));
+       }
     }
 
-    return res.status(200).json({
-      season,
-      alerts: finalAlerts.slice(0, 2),
-      generatedAt: new Date().toISOString(),
-      message: `Personalized ${season} season advisory based on your farm`,
-    });
-  } catch (err) {
-    console.error("Gemini advisory failed, using smart static fallback:", err?.message?.slice(0, 80));
-    // Always return smart fallback with both crop + livestock if available
-    return res.status(200).json({
-      season,
-      alerts: buildSmartFallback(),
-      generatedAt: new Date().toISOString(),
-      message: userLivestock.length > 0
-        ? `Personalized ${season} advisory for your crops & livestock`
-        : `${season} season advisory — watch for these high-severity threats`,
-    });
+    if (!finalAlerts.length) {
+      console.error("AI advisory failed, using smart static fallback:", err?.message?.slice(0, 80));
+      return res.status(200).json({
+        season,
+        alerts: buildSmartFallback(),
+        generatedAt: new Date().toISOString(),
+        message: userLivestock.length > 0
+          ? `Personalized ${season} advisory for your crops & livestock`
+          : `${season} season advisory — watch for these high-severity threats`,
+      });
+    }
   }
+
+  // If user has livestock but AI didn't include a livestock card, inject one
+  if (userLivestock.length > 0) {
+    const hasLsCard = finalAlerts.some(a =>
+      Object.keys(LIVESTOCK_ADVISORIES).map(k => k.toLowerCase()).includes(a.crop?.toLowerCase())
+    );
+    if (!hasLsCard) {
+      const lsType = userLivestock[0];
+      const adv = LIVESTOCK_ADVISORIES[lsType] || LIVESTOCK_ADVISORIES.Cow;
+      finalAlerts = [finalAlerts[0], { crop: lsType, disease: adv.disease, severity: "High", symptom: adv.symptom, season }];
+    }
+  }
+
+  return res.status(200).json({
+    season,
+    alerts: finalAlerts.slice(0, 2),
+    generatedAt: new Date().toISOString(),
+    message: `Personalized ${season} season advisory based on your farm`,
+  });
 }
 
 export async function getRecentDiagnoses(req, res, next) {
@@ -946,20 +1013,62 @@ Rules:
 Return ONLY valid JSON with fields: crop, disease, confidence, reasoning, symptoms, causes, treatment, prevention.`;
 
     let result;
+    let fallbackToTflite = false;
+    let modelText = "";
+
     try {
       result = await generateContentWithModelFallback(
         geminiClient,
         payload,
         prompt,
       );
+      modelText = result?.response?.text() || "";
     } catch (modelError) {
-      console.error("Gemini first attempt failed:", modelError);
-      return res.status(502).json({
-        message: modelError.message || "Failed to analyze image with AI.",
-      });
+      console.error("Gemini first attempt failed:", modelError?.message);
+      fallbackToTflite = true;
     }
 
-    const modelText = result?.response?.text() || "";
+    if (fallbackToTflite) {
+      try {
+         console.log("[TFLite] Vision fallback triggered: Using offline TensorFlow model for analysis");
+         const tfliteAnalysis = await getTfliteFallbackAnalysis(payload.imageBase64);
+         
+         // Only cache meaningful results
+         if (!isUnknownAnalysis(tfliteAnalysis)) {
+           try {
+             await DiagnosisCache.findOneAndUpdate(
+               { imageHash },
+               {
+                 $set: {
+                   mimeType: payload.mimeType,
+                   analysis: tfliteAnalysis,
+                   lastAccessedAt: new Date(),
+                 },
+                 $inc: { hitCount: 1 },
+               },
+               { upsert: true, new: true, setDefaultsOnInsert: true },
+             );
+           } catch { /* Continue even if cache persistence fails */ }
+         }
+
+         await persistScanHistory(req.user, tfliteAnalysis);
+
+         return res.status(200).json({
+           analysis: tfliteAnalysis,
+           meta: {
+             cached: false,
+             imageHash,
+             offlineFallback: true
+           },
+         });
+      } catch (err) {
+         console.error("TFLite vision fallback failed:", err?.message);
+         return res.status(502).json({
+           message: "Failed to analyze image with AI (Cloud and Offline providers both failed).",
+         });
+      }
+    }
+
     const jsonCandidate = getJsonCandidate(modelText);
 
     let parsedJson;
@@ -973,13 +1082,18 @@ Return ONLY valid JSON with fields: crop, disease, confidence, reasoning, sympto
 
     if (isUnknownAnalysis(analysis)) {
       try {
-        const retryResult = await generateContentWithModelFallback(
-          geminiClient,
-          payload,
-          retryPrompt,
-        );
+        let retryText = "";
+        try {
+          const retryResult = await generateContentWithModelFallback(
+            geminiClient,
+            payload,
+            retryPrompt,
+          );
+          retryText = retryResult?.response?.text() || "";
+        } catch (err) {
+          // No Groq vision fallback available
+        }
 
-        const retryText = retryResult?.response?.text() || "";
         const retryCandidate = getJsonCandidate(retryText);
         const retryJson = JSON.parse(retryCandidate);
         const retryAnalysis = normalizeAiOutput(retryJson);
