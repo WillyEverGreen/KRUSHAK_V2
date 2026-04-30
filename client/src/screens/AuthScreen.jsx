@@ -208,7 +208,7 @@ function RegisterForm({ onSuccess }) {
   }
 
   return (
-    <form className="auth-form" onSubmit={handleRegister} id="register-form">
+    <form className="auth-form auth-form-terms" onSubmit={handleRegister} id="register-form">
       <div className="auth-welcome">
         <div className="auth-welcome-title">Join Krushak 🌱</div>
         <div className="auth-welcome-sub">Create your free farmer account</div>
@@ -293,12 +293,6 @@ function RegisterForm({ onSuccess }) {
           "🌾 Create My Account"
         )}
       </button>
-
-      <div className="auth-terms">
-        By registering you agree to our{" "}
-        <a href="/faq" className="auth-link">Terms of Use</a>.
-        Your data is stored securely on MongoDB Atlas.
-      </div>
     </form>
   );
 }

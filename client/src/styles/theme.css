@@ -402,6 +402,8 @@ textarea {
 
 .message.bot {
   margin-right: auto;
+  width: 100%;
+  max-width: 100%;
   background: #fff;
   color: var(--text-dark);
   border-bottom-left-radius: 5px;
@@ -423,6 +425,7 @@ textarea {
   display: flex;
   align-items: center;
   gap: 10px;
+  border-radius: 8px;
 }
 
 .header-back-btn {
@@ -1776,7 +1779,7 @@ textarea {
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
   border-radius: 28px;
-  padding: 24px 20px 20px;
+  padding: 24px 20px 20px 20px;
   box-shadow:
     0 4px 6px rgba(0,0,0,0.04),
     0 20px 60px rgba(46, 125, 50, 0.16);
@@ -1789,6 +1792,13 @@ textarea {
   display: flex;
   flex-direction: column;
   min-height: 520px;
+  overflow: hidden;
+}
+
+@media (max-width: 480px) {
+  .auth-card {
+    min-height: auto;
+  }
 }
 
 /* Logo */
@@ -1859,6 +1869,8 @@ textarea {
   flex-direction: column;
   flex: 1; /* Expand to fill fixed card height */
   gap: 12px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .auth-welcome-title {
@@ -1962,6 +1974,11 @@ textarea {
   margin-top: auto; /* Push button to the bottom of the fixed-height form */
   transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s;
   box-shadow: 0 4px 18px rgba(46, 125, 50, 0.38);
+}
+
+.auth-form-terms .auth-submit-btn {
+  margin-top: 12px;
+  flex-shrink: 0;
 }
 
 .auth-submit-btn:hover:not(:disabled) {
