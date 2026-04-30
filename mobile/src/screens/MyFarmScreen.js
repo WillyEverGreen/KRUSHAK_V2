@@ -14,6 +14,7 @@ import {
   addReminder, deleteReminder, toggleReminder, fetchHomeData,
   fetchFarmData, addLivestockFeedReminder
 } from '../services/api';
+import { generateIrrigationGuide } from '../services/aiGuideService';
 import { Card, CardElevated, Tag, LoadingState, HealthBar, Divider } from '../components/UIKit';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -268,7 +269,15 @@ export default function MyFarmScreen() {
   // Mutations
   const addCropMut = useMutation({ 
     mutationFn: addCrop, 
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['crops'] }); qc.invalidateQueries({ queryKey: ['farmData'] }); setShowAddCrop(false); },
+    onSuccess: (newCrop) => { 
+      qc.invalidateQueries({ queryKey: ['crops'] }); 
+      qc.invalidateQueries({ queryKey: ['farmData'] }); 
+      setShowAddCrop(false); 
+      // Generate AI Irrigation guide in the background
+      if (newCrop) {
+        generateIrrigationGuide(newCrop).catch(e => console.log('Background AI guide error:', e));
+      }
+    },
     onError: (err) => Alert.alert('Error', err?.response?.data?.message || 'Could not add crop. Are you logged in?'),
   });
   const deleteCropMut = useMutation({ mutationFn: deleteCrop, onSuccess: () => { qc.invalidateQueries({ queryKey: ['crops'] }); qc.invalidateQueries({ queryKey: ['farmData'] }); } });

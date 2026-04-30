@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, Image, TouchableOpacity,
   StyleSheet, Linking, RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -12,6 +12,7 @@ import { fetchNews } from '../services/api';
 import { LoadingState, ErrorState, EmptyState } from '../components/UIKit';
 
 export default function NewsScreen() {
+  const insets = useSafeAreaInsets();
   const [scope, setScope] = useState('global');
   const [coords, setCoords] = useState(null);
 
@@ -37,10 +38,10 @@ export default function NewsScreen() {
   const articles = data?.articles || [];
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
+    <SafeAreaView style={styles.root} edges={['left', 'right', 'bottom']}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 12 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

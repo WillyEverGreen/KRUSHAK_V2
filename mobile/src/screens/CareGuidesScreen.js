@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography, shadows } from '../theme/tokens';
 import { fetchRecentDiagnoses } from '../services/api';
@@ -48,15 +49,33 @@ function GuideLine({ icon, label, text }) {
 }
 
 export default function CareGuidesScreen() {
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { data: recentDiagnoses = [] } = useQuery({
     queryKey: ['care-recent-diagnoses'],
     queryFn: fetchRecentDiagnoses,
   });
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.root} edges={['left', 'right', 'bottom']}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 16 }]} showsVerticalScrollIndicator={false}>
         <Text style={styles.pageTitle}>Care Guides</Text>
+
+      {/* AI Irrigation Guides */}
+      <TouchableOpacity onPress={() => navigation.navigate('CropIrrigationGuide')} activeOpacity={0.85}>
+        <CardElevated style={{ marginTop: 16, backgroundColor: '#eff6ff', borderColor: '#bfdbfe', borderWidth: 1 }}>
+          <View style={[styles.cardHeader, { marginBottom: 4 }]}>
+            <View style={[styles.cardHeaderIcon, { backgroundColor: '#dbeafe' }]}>
+              <Ionicons name="hardware-chip-outline" size={18} color="#2563eb" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.cardTitle, { color: '#1d4ed8' }]}>AI Crop Guides</Text>
+              <Text style={{ fontSize: typography.sm, color: '#3b82f6', marginTop: 2 }}>Personalized AI irrigation instructions</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#3b82f6" />
+          </View>
+        </CardElevated>
+      </TouchableOpacity>
 
       {/* Irrigation Guide */}
       <CardElevated style={{ marginTop: 16 }}>

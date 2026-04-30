@@ -10,6 +10,9 @@ import { colors, radii, spacing, typography, shadows } from '../theme/tokens';
 import { useAuthStore } from '../store/authStore';
 import { CardElevated, ListRow, Divider, PrimaryButton } from '../components/UIKit';
 import { Dropdown } from '../components/Dropdown';
+import { useQuery } from '@tanstack/react-query';
+import { fetchFarmData, fetchLivestock } from '../services/api';
+import { getCachedScans } from '../services/scanCache';
 
 const LANGUAGES = ['English', 'Hindi', 'Marathi', 'Gujarati', 'Punjabi', 'Telugu', 'Kannada'];
 const LANG_FLAGS = ['🇬🇧', '🇮🇳', '🇮🇳', '🇮🇳', '🇮🇳', '🇮🇳', '🇮🇳'];
@@ -18,6 +21,18 @@ export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
   const [notifications, setNotifications] = useState(true);
   const [langIdx, setLangIdx] = useState(0);
+  const [scanCount, setScanCount] = useState('—');
+
+  // Fetch real farm stats
+  const { data: farmData } = useQuery({ queryKey: ['farm'], queryFn: fetchFarmData, staleTime: 5 * 60 * 1000 });
+  const { data: livestockList } = useQuery({ queryKey: ['livestock'], queryFn: fetchLivestock, staleTime: 5 * 60 * 1000 });
+
+  React.useEffect(() => {
+    getCachedScans().then(scans => setScanCount(scans.length));
+  }, []);
+
+  const cropCount = farmData?.crops?.length ?? '—';
+  const livestockCount = Array.isArray(livestockList) ? livestockList.length : '—';
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -74,21 +89,21 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Farm Overview</Text>
           <View style={styles.statsRow}>
             <StatBox
-              value={user?.cropCount ?? '—'}
+              value={cropCount}
               label="Crops"
               icon="leaf-outline"
               color={colors.accentGreen}
             />
             <View style={styles.statDivider} />
             <StatBox
-              value={user?.livestockCount ?? '—'}
+              value={livestockCount}
               label="Livestock"
               icon="paw-outline"
               color={colors.warning}
             />
             <View style={styles.statDivider} />
             <StatBox
-              value={user?.diagnosisCount ?? '—'}
+              value={scanCount}
               label="Scans"
               icon="scan-outline"
               color={colors.blueAccent}

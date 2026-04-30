@@ -69,7 +69,8 @@ export async function pingServer() {
   try {
     // Health endpoint is at the root, not under /api
     const baseUrl = (http.defaults.baseURL || '').replace(/\/api\/?$/, '');
-    const resp = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(4000) });
+    // Render free tier can take up to 50s to wake up. Use 15s timeout.
+    const resp = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(15000) });
     return resp.ok;
   } catch {
     return false;

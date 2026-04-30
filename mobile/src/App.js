@@ -11,6 +11,7 @@ import AuthScreen from './screens/AuthScreen';
 import NewsScreen from './screens/NewsScreen';
 import ChatScreen from './screens/ChatScreen';
 import CareGuidesScreen from './screens/CareGuidesScreen';
+import CropIrrigationGuideScreen from './screens/CropIrrigationGuideScreen';
 import FaqScreen from './screens/FaqScreen';
 import CommonDiseasesScreen from './screens/CommonDiseasesScreen';
 import { colors } from './theme/tokens';
@@ -78,6 +79,11 @@ function RootNavigator() {
         name="CareGuides"
         component={CareGuidesScreen}
         options={greenHeader('Care Guides')}
+      />
+      <Stack.Screen
+        name="CropIrrigationGuide"
+        component={CropIrrigationGuideScreen}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="Faq"

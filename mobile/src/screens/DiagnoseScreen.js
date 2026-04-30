@@ -69,6 +69,7 @@ export default function DiagnoseScreen() {
   const [mode, setMode]                 = useState(MODE_AI);
   const [serverOk, setServerOk]         = useState(true);
   const [checkingNet, setCheckingNet]   = useState(false);
+  const [serverWarmingUp, setServerWarmingUp] = useState(false);
   const insets = useSafeAreaInsets();
   const [cachedScans, setCachedScans]   = useState([]);
 
@@ -81,12 +82,21 @@ export default function DiagnoseScreen() {
   /* ── Network detection — auto-switch mode ─────────────────── */
   const checkServer = useCallback(async () => {
     setCheckingNet(true);
+    setServerWarmingUp(false);
+    // Quick 3s pre-check first
+    try {
+      const baseUrl = (require('./services/http').http.defaults.baseURL || '').replace(/\/api\/?$/, '');
+      await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(3000) });
+      setServerOk(true);
+      setCheckingNet(false);
+      return;
+    } catch {}
+    // Slow path — server may be warming up (Render free tier)
+    setServerWarmingUp(true);
     const ok = await pingServer();
     setServerOk(ok);
-    if (!ok) {
-      // Auto-switch to quick mode (still needs server, but faster fallback)
-      setMode(MODE_QUICK);
-    }
+    setServerWarmingUp(false);
+    if (!ok) setMode(MODE_QUICK);
     setCheckingNet(false);
   }, []);
 
@@ -186,7 +196,13 @@ export default function DiagnoseScreen() {
         </View>
 
         {/* Offline/Online Banner */}
-        {!serverOk && (
+        {serverWarmingUp && (
+          <View style={[styles.offlineBanner, { backgroundColor: '#fff8e1', borderColor: '#ffe082' }]}>
+            <ActivityIndicator size="small" color="#f59e0b" />
+            <Text style={[styles.offlineBannerText, { color: '#92400e' }]}>Server is waking up… AI Scan will be ready in ~30s</Text>
+          </View>
+        )}
+        {!serverOk && !serverWarmingUp && (
           <View style={styles.offlineBanner}>
             <Ionicons name="wifi-outline" size={16} color="#b45309" />
             <Text style={styles.offlineBannerText}>Server unreachable — view past scans below</Text>

@@ -6,7 +6,7 @@ import {
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, spacing, typography, shadows } from '../theme/tokens';
 import { CardElevated, Tag, Chip, SectionBox } from '../components/UIKit';
 import { analyzePlantImage, fetchRecentDiagnoses } from '../services/api';
@@ -48,6 +48,7 @@ export default function DiagnoseResultScreen() {
   const route = useRoute();
   const navigation = useNavigation();
   const qc = useQueryClient();
+  const insets = useSafeAreaInsets();
 
   const { analysis = null, imageUri, offlineMode = false } = route.params || {};
 
@@ -258,13 +259,13 @@ export default function DiagnoseResultScreen() {
             }}
             activeOpacity={0.85}
           >
-            <Text style={{ fontSize: 16 }}>🤖</Text>
+            <Ionicons name="chatbubble-ellipses-outline" size={20} color="#6d28d9" />
             <Text style={styles.askAiBtnText}>Ask AI about this Diagnosis</Text>
             <Ionicons name="chevron-forward-outline" size={16} color="#6d28d9" />
           </TouchableOpacity>
         )}
 
-        <View style={{ height: 32 }} />
+        <View style={{ height: Math.max(insets.bottom + 16, 32) }} />
       </ScrollView>
     </SafeAreaView>
   );
