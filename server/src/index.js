@@ -76,3 +76,4 @@ app.listen(PORT, async () => {
 
 // Export for testing / future use
 export default app;
+// Trigger restart

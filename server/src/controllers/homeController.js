@@ -2,6 +2,7 @@ import { ScanRecord } from "../models/ScanRecord.js";
 import { Crop } from "../models/Crop.js";
 import { getWeather, getWeatherStale } from "../services/weatherService.js";
 import { getTodayInstructions, getRiskMeters, getGreeting } from "../services/actionEngine.js";
+import { getLocationName } from "../services/locationService.js";
 
 export async function getHomeData(req, res, next) {
   try {
@@ -18,7 +19,7 @@ export async function getHomeData(req, res, next) {
       );
     } catch {
       weather = getWeatherStale(lat, lon) ?? {
-        tempMax: 30, precipitation: 0, unit: "°C",
+        tempCurrent: 30, tempMax: 30, precipitation: 0, unit: "°C",
         summary: "Weather unavailable", weatherRisk: 20,
         forecast: [], stale: true,
       };
@@ -48,7 +49,14 @@ export async function getHomeData(req, res, next) {
     const greeting     = getGreeting();
 
     /* ── 5. Location label ──────────────────────────────────────────── */
-    const location = req.query.location || "India";
+    let location = req.query.location;
+    if (!location) {
+      try {
+        location = await getLocationName(lat, lon);
+      } catch {
+        location = "India";
+      }
+    }
 
     const now = new Date().toISOString();
 
@@ -57,7 +65,7 @@ export async function getHomeData(req, res, next) {
       dashboardTitle: "KisanAI Dashboard",
       location,
       weather: {
-        value:         `${weather.tempMax}${weather.unit}`,
+        value:         `${weather.tempCurrent ?? weather.tempMax}${weather.unit}`,
         summary:       weather.summary,
         precipitation: weather.precipitation,
         stale:         weatherStale || weather.stale || false,

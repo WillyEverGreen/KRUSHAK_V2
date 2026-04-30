@@ -60,13 +60,28 @@ export default function HomeScreen() {
   const [coords, setCoords] = useState(undefined);
 
   useEffect(() => {
+    const fallbackToIp = async () => {
+      try {
+        // Fallback to IP-based location if GPS is denied, timed out, or unavailable
+        const res = await fetch("http://ip-api.com/json/");
+        const data = await res.json();
+        if (data && data.lat && data.lon) {
+          setCoords({ latitude: data.lat, longitude: data.lon });
+        } else {
+          setCoords(null);
+        }
+      } catch {
+        setCoords(null);
+      }
+    };
+
     if (!navigator.geolocation) {
-      setCoords(null); // browser doesn't support — fall back immediately
+      fallbackToIp(); // browser doesn't support — fall back to IP
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => setCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-      () => setCoords(null), // denied / timed out — fall back to server default
+      () => fallbackToIp(), // denied / timed out — fall back to IP
       { timeout: 8000, maximumAge: 5 * 60 * 1000 }
     );
   }, []);

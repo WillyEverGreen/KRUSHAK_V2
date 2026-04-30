@@ -61,6 +61,7 @@ export async function getWeather(lat = 28.6, lon = 77.2, timezone = "Asia/Kolkat
   const params = new URLSearchParams({
     latitude:  String(lat),
     longitude: String(lon),
+    current:   "temperature_2m,precipitation",
     daily:     "temperature_2m_max,precipitation_sum",
     timezone,
   });
@@ -80,13 +81,16 @@ export async function getWeather(lat = 28.6, lon = 77.2, timezone = "Asia/Kolkat
     clearTimeout(tid);
   }
 
-  const tempMax      = raw.daily?.temperature_2m_max?.[0] ?? 30;
+  const tempMax       = raw.daily?.temperature_2m_max?.[0] ?? 30;
   const precipitation = raw.daily?.precipitation_sum?.[0] ?? 0;
-  const unit         = raw.daily_units?.temperature_2m_max || "°C";
+  const currentTemp   = raw.current?.temperature_2m ?? tempMax;
+  const currentPrecip = raw.current?.precipitation ?? 0;
+  const unit          = raw.current_units?.temperature_2m || "°C";
 
   const snapshot = {
+    tempCurrent:   Math.round(currentTemp),
     tempMax:       Math.round(tempMax),
-    precipitation: Math.round(precipitation * 10) / 10,
+    precipitation: Math.round(currentPrecip * 10) / 10,
     unit,
     summary:       buildSummary(tempMax, precipitation),
     weatherRisk:   weatherRiskScore(tempMax, precipitation),
