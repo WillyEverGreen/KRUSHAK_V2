@@ -913,6 +913,7 @@ IMPORTANT:
 - If the image is truly unclear or no plant is visible, return "Unknown"
 - Base your answer strictly on visible symptoms
 - If symptoms are visible, choose the most probable condition with conservative confidence instead of defaulting to Unknown
+- If the plant is Healthy, DO NOT return empty arrays. Instead, provide positive observations in 'symptoms' (e.g. "Vibrant green leaves"), explain what indicates good health in 'causes', and provide general care or maintenance tips in 'treatment' and 'prevention'.
 
 Return ONLY valid JSON:
 
@@ -940,6 +941,7 @@ Rules:
 - Do not hallucinate unseen details.
 - If symptoms are visible, return the best probable disease with Low or Medium confidence.
 - Return Unknown only if image quality/content is genuinely insufficient.
+- If the plant is Healthy, do not return empty arrays. Instead, provide healthy observations and general care tips in the respective fields.
 
 Return ONLY valid JSON with fields: crop, disease, confidence, reasoning, symptoms, causes, treatment, prevention.`;
 
