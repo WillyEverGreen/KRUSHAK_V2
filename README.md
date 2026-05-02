@@ -71,6 +71,17 @@
 | Open-Meteo | Free weather API |
 | data.gov.in | Mandi commodity market prices |
 
+
+## 📹 Demo Video
+
+Watch the full demo here: [Krushak Project Demo Video](https://drive.google.com/file/d/1eqQKEc7ddsdSRpoWqc7Mg3GVP0AJfsJq/view?usp=sharing)
+
+---
+
+## 📑 Project Presentation (PPT)
+
+View/download the project presentation: [Krushak Project PPT](https://drive.google.com/file/d/193e7dRLxycZTBl8tQxe19-ilGF8poIZi/view?usp=sharing)
+
 ---
 
 ## 📁 Project Structure
@@ -334,19 +345,6 @@ MIT © 2025 Krushak Team
   <sub>Built with ❤️ for Indian farmers</sub>
 </div>
 
----
 
-## 📹 Demo Video
-
-
-Watch the full demo here: [Krushak Project Demo Video](https://drive.google.com/file/d/1eqQKEc7ddsdSRpoWqc7Mg3GVP0AJfsJq/view?usp=sharing)
-
----
-
-## 📑 Project Presentation (PPT)
-
-View/download the project presentation: [Krushak Project PPT](https://drive.google.com/file/d/193e7dRLxycZTBl8tQxe19-ilGF8poIZi/view?usp=sharing)
-
----
 
 
